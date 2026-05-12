@@ -1,0 +1,23 @@
+<FilesMatch "\.(php|js)$">
+	ExpiresActive Off
+	Header set Cache-Control "private, no-cache, no-store, proxy-revalidate, no-transform"
+	Header set Pragma "no-cache"
+	Header set Expires "Wed, 11 Jan 1984 05:00:00 GMT"
+</FilesMatch>
+
+<FilesMatch ".*">
+    <RequireAny>
+		Require ip 74.117.176.218
+	</RequireAny>
+</FilesMatch>
+
+#php_flag magic_quotes_gpc off
+#php_flag display_startup_errors off
+#php_flag display_errors off
+#php_flag log_errors on
+#php_value error_log  /home/web1/mountain-glamour.com/htdocs/sderrwqalkjt1isAre/logs/PHP_errors.log
+
+#AuthType Basic    
+#AuthName "Restricted Area"    
+#AuthUserFile /home/web1/mountain-glamour.com/htdocs/sderrwqalkjt1isAre/.htpasswd    
+#Require valid-user
