@@ -65,6 +65,7 @@
 			        			<li><a href="index.php?act=queries&amp;type=descs">.. Десков</a></li>
 			        			<li><a href="index.php?act=queries&amp;type=make_galleries">.. Галер на сайты</a></li>
 			        			<li><a href="index.php?act=queries&amp;type=show_cache_query">Очереди на кэш и логи изменения</a></li>
+			        			<li><a href="index.php?act=queries&amp;type=show_cache_query&amp;q_view=preview">.. Video preview</a></li>
 			        		</ul>
 			    		</li>
 						<li>

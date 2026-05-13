@@ -1,7 +1,7 @@
 <?php
 header('Content-type: application/json');
 include("../config/config.php");
-include("../classes/class.logger.php");
+include("../classes/Logger.php");
 include("../classes/class.db_access.php");
 include("../classes/class.galleries.php");
 include("../classes/class.sites.php");

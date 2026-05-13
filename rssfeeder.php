@@ -12,7 +12,7 @@ if (!isset($_GET['pwd']) || $_GET['pwd'] != $pwrd) {
 }
 
 require_once($scriptDir . "/config/config.php");
-require_once($scriptDir . "/classes/class.logger.php");
+require_once($scriptDir . "/classes/Logger.php");
 require_once($scriptDir . "/classes/class.db_access.php");
 require_once($scriptDir . "/lib/functions.php");
 require_once($scriptDir . "/classes/rss.new.php");
@@ -44,7 +44,7 @@ if (isset($_GET['paysite'])) {
 	$paysiteInfo = $paysitesWorker->getSourceByName($_GET['paysite']);
 	header('Content-type: application/json');
 	echo json_encode((array)$paysiteInfo);
-	
+
 	exit;
 }
 
@@ -75,7 +75,7 @@ if (isset($_GET['sitemaps'])) {
 
 	require_once($scriptDir . "/classes/class.sitesgalleries.php");
 	require_once($scriptDir . "/classes/class.sites.php");
-	
+
 
 	$sites_util = new Sites($db->_db);
 	if (isset($_GET['site_id'])) {
@@ -183,8 +183,9 @@ if (isset($_GET['sitemaps'])) {
 	$sites_util = new Sites($db->_db);
 	$site = $sites_util->getSite($site_id);
 
-	if(!$site || !$site['site_id']) {
-		echo "Error occured! S."; die;
+	if (!$site || !$site['site_id']) {
+		echo "Error occured! S.";
+		die;
 	}
 
 	// var_dump($site['local_id_flag']); die;
@@ -203,19 +204,19 @@ if (isset($_GET['sitemaps'])) {
 
 		$modelsArray = $galleries->getSiteModelsListings($_GET['all_model_info']);
 
-		foreach($modelsArray as $model) {
+		foreach ($modelsArray as $model) {
 			$modelInfo = $modelService->findModelByIdOrFail($model['id']);
 
 			$modelInfo['created_at'] = !empty($modelInfo['added_on']) ? date('Y-m-d H:i:s', $modelInfo['added_on']) : date('Y-m-d H:i:s');
 
 			$resultArray[] = [
-								'info' => $modelInfo,
-								'stats' => $model,
+				'info' => $modelInfo,
+				'stats' => $model,
 			];
 		}
-	
+
 		header('Content-type: application/json');
-	
+
 		try {
 			echo json_encode([
 				'success' => true,
@@ -224,7 +225,7 @@ if (isset($_GET['sitemaps'])) {
 		} catch (Exception $e) {
 			echo json_encode(['error' => 'Модель не найдена']);
 		}
-	
+
 		exit;
 	}
 
@@ -250,7 +251,7 @@ if (isset($_GET['sitemaps'])) {
 
 	if ($deleted) {
 		include $scriptDir . "/classes/class.db_access.php";
-		include $scriptDir . "/classes/class.logger.php";
+		include $scriptDir . "/classes/Logger.php";
 
 		$galleries = $rss->getDeletedGalleries($site_id);
 		echo "<?xml version='1.0' encoding=\"utf-8\"?>\n";

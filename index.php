@@ -151,7 +151,7 @@ function renderLoginPage($error = '', $loginName = '')
 }
 
 include("config/config.php");
-include("classes/class.logger.php");
+include("classes/Logger.php");
 include("classes/class.db_access.php");
 include("classes/Users.php");
 include("classes/Auth.php");

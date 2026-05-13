@@ -10,20 +10,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 	exit;
 }
 
-require_once __DIR__.'/config/config.php';
-require_once __DIR__.'/classes/class.logger.php';
-require_once __DIR__.'/classes/class.db_access.php';
-require_once __DIR__.'/classes/class.images.php';
-require_once __DIR__.'/classes/class.models.php';
-require_once __DIR__.'/classes/class.sources.php';
-require_once __DIR__.'/classes/class.galleries.php';
-require_once __DIR__.'/lib/functions.php';
+require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/classes/Logger.php';
+require_once __DIR__ . '/classes/class.db_access.php';
+require_once __DIR__ . '/classes/class.images.php';
+require_once __DIR__ . '/classes/class.models.php';
+require_once __DIR__ . '/classes/class.sources.php';
+require_once __DIR__ . '/classes/class.galleries.php';
+require_once __DIR__ . '/lib/functions.php';
 
-function remoteImportGetRequestIp(): string {
+function remoteImportGetRequestIp(): string
+{
 	return isset($_SERVER['REMOTE_ADDR']) ? trim((string)$_SERVER['REMOTE_ADDR']) : '';
 }
 
-function remoteImportAllowedIps(): array {
+function remoteImportAllowedIps(): array
+{
 	$ips = array('127.0.0.1');
 
 	if (defined('ALWAYS_ALLOWED_IP') && ALWAYS_ALLOWED_IP) {
@@ -43,7 +45,8 @@ function remoteImportAllowedIps(): array {
 	return array_values(array_unique($ips));
 }
 
-function remoteImportGetSecret(): string {
+function remoteImportGetSecret(): string
+{
 	if (defined('REMOTE_IMPORT_TOKEN') && REMOTE_IMPORT_TOKEN) {
 		return (string)REMOTE_IMPORT_TOKEN;
 	}
@@ -55,7 +58,8 @@ function remoteImportGetSecret(): string {
 	return '';
 }
 
-function remoteImportReadPayload(): array {
+function remoteImportReadPayload(): array
+{
 	$payload = array();
 
 	if (isset($_POST['payload'])) {
@@ -83,7 +87,8 @@ function remoteImportReadPayload(): array {
 	return $payload;
 }
 
-function remoteImportResolvePaysite(PDO $db, string $slug): ?array {
+function remoteImportResolvePaysite(PDO $db, string $slug): ?array
+{
 	$slug = trim(strtolower($slug));
 	if ($slug === '') {
 		return null;
@@ -100,7 +105,8 @@ function remoteImportResolvePaysite(PDO $db, string $slug): ?array {
 	return $row ?: null;
 }
 
-function remoteImportResolveSiteId(PDO $db, $siteInput): int {
+function remoteImportResolveSiteId(PDO $db, $siteInput): int
+{
 	if (is_int($siteInput) || ctype_digit((string)$siteInput)) {
 		$siteId = (int)$siteInput;
 		if ($siteId < 1) {
@@ -125,7 +131,8 @@ function remoteImportResolveSiteId(PDO $db, $siteInput): int {
 	return $resolvedId ? (int)$resolvedId : 0;
 }
 
-function remoteImportNormalizeNiche($niche): string {
+function remoteImportNormalizeNiche($niche): string
+{
 	$niche = trim(strtolower((string)$niche));
 	$map = array(
 		'gay' => 'Gay',
@@ -238,7 +245,7 @@ foreach ($items as $idx => $item) {
 		$failed[] = array(
 			'item' => $idx,
 			'url' => $url,
-			'error' => "Invalid paysite niche for paysite #".(int)$paysite['id'],
+			'error' => "Invalid paysite niche for paysite #" . (int)$paysite['id'],
 		);
 		continue;
 	}
@@ -298,4 +305,3 @@ echo json_encode(array(
 	'added' => $added,
 	'failed' => $failed,
 ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-

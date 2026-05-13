@@ -681,6 +681,10 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 						$file_info = $gallery_worker->getVideoFileInfo($gallery['id']);
 						$previewInfo = $gallery_worker->getVideoPreviewInfo($gallery['id']);
 						$previewUrl = $gallery_worker->getVideoPreviewPublicUrl($gallery['id'], true);
+						$previewStatus = ($previewInfo && isset($previewInfo['preview_status'])) ? $previewInfo['preview_status'] : 'new';
+						$previewGenerated = ($previewInfo && !empty($previewInfo['generated_on'])) ? date("Y-m-d H:i", (int)$previewInfo['generated_on']) : '';
+						$previewSizeMb = ($previewInfo && !empty($previewInfo['preview_size'])) ? round($previewInfo['preview_size'] / 1048576, 2) : 0;
+						$previewDurationSec = ($previewInfo && !empty($previewInfo['preview_duration_ms'])) ? round($previewInfo['preview_duration_ms'] / 1000, 1) : 0;
 						if ($file_info && is_array($file_info)) {
 					?>
 							Размер видео: <b><?= round($file_info['size'], 2) ?></b>Mb |
@@ -713,35 +717,6 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 							// var_dump($gallery_worker->generateCdnSyncUrl($gallery['id']));
 							$gallery_worker->processSyncCdnQuery();
 							// var_dump($gallery_worker->getVideosToCdnSyncCount());
-
-							$previewStatus = ($previewInfo && isset($previewInfo['preview_status'])) ? $previewInfo['preview_status'] : 'new';
-							$previewGenerated = ($previewInfo && !empty($previewInfo['generated_on'])) ? date("Y-m-d H:i", (int)$previewInfo['generated_on']) : '';
-							$previewSizeMb = ($previewInfo && !empty($previewInfo['preview_size'])) ? round($previewInfo['preview_size'] / 1048576, 2) : 0;
-							$previewDurationSec = ($previewInfo && !empty($previewInfo['preview_duration_ms'])) ? round($previewInfo['preview_duration_ms'] / 1000, 1) : 0;
-							?>
-							<div style="margin: 8px 0 0 0; padding: 8px; background: #efefef; border: 1px solid #ccc; display: inline-block;">
-								<span><strong>Видео preview:</strong> <?= $previewStatus ?></span>
-								<?php if ($previewUrl) { ?>
-									| <span><?= $previewSizeMb ?> Mb</span>
-									| <span><?= $previewDurationSec ?> сек</span>
-								<?php } ?>
-								<?php if ($previewGenerated) { ?>
-									| <span>Обновлено: <?= $previewGenerated ?></span>
-								<?php } ?>
-								<?php if ($previewInfo && !empty($previewInfo['error_message'])) { ?>
-									| <span style="color:#a00;"><?= htmlspecialchars($previewInfo['error_message']) ?></span>
-								<?php } ?>
-								<div style="margin-top: 6px;">
-									<input type="button"
-										value="<?php if ($previewUrl) { ?>Перегенерировать preview<?php } else { ?>Сгенерировать preview<?php } ?>"
-										onclick="return generate_video_preview(<?= $galleryId ?>);">
-									<?php if ($previewUrl) { ?>
-										<input type="button" value="Открыть preview"
-											onclick="return open_video_preview_modal('<?= htmlspecialchars($previewUrl, ENT_QUOTES) ?>', <?= $galleryId ?>);">
-									<?php } ?>
-								</div>
-							</div>
-						<?php
 
 						}
 					}
@@ -1254,6 +1229,51 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 				<div class="counterChoosen" style="margin-top:140px;">
 					Кадр: <div id="counterChoosen"><?= $imageSize[0] ?>x<?= $imageSize[1] ?></div>
 				</div>
+				<div class="counterChoosen" style="margin-top:210px; width:240px; padding:8px 10px; line-height:1.35; font-size:13px; opacity:0.95;">
+					<div style="font-size:15px; font-weight:bold; color:#333;">Видео preview</div>
+					<div id="video-preview-status-box" style="margin-top:6px; color:#555;">
+						<span id="video-preview-spinner" style="display:none; width:12px; height:12px; margin-right:6px; border:2px solid #cfcfcf; border-top-color:#4a78c2; border-radius:50%; vertical-align:-2px; animation:video-preview-spin 0.8s linear infinite;"></span>
+						<span id="video-preview-status-text">Статус: <?= htmlspecialchars($previewStatus) ?></span>
+					</div>
+					<div id="video-preview-meta" style="margin-top:6px; color:#666;">
+						<?php if ($previewUrl) { ?>
+							<div id="video-preview-meta-size">Размер: <?= $previewSizeMb ?> Mb</div>
+							<div id="video-preview-meta-duration">Длительность: <?= $previewDurationSec ?> сек</div>
+						<?php } else { ?>
+							<div id="video-preview-meta-size" style="display:none;"></div>
+							<div id="video-preview-meta-duration" style="display:none;"></div>
+						<?php } ?>
+						<?php if ($previewGenerated) { ?>
+							<div id="video-preview-meta-generated">Обновлено: <?= $previewGenerated ?></div>
+						<?php } else { ?>
+							<div id="video-preview-meta-generated" style="display:none;"></div>
+						<?php } ?>
+					</div>
+					<div id="video-preview-error" style="margin-top:6px; color:#a00;<?php if (!$previewInfo || empty($previewInfo['error_message'])) { ?> display:none;<?php } ?>">
+						<?php if ($previewInfo && !empty($previewInfo['error_message'])) { ?>
+							<?= htmlspecialchars($previewInfo['error_message']) ?>
+						<?php } ?>
+					</div>
+					<div id="video-preview-success" style="margin-top:6px; color:#2b6a2b; display:none;"></div>
+					<div id="video-preview-actions" style="margin-top:8px;">
+						<input type="button"
+							id="video-preview-generate-btn"
+							style="display:block; width:100%; margin:0 0 6px 0; box-sizing:border-box;"
+							value="<?php if ($previewUrl) { ?>Перегенерировать preview<?php } else { ?>Сгенерировать preview<?php } ?>"
+							onclick="return generate_video_preview(<?= $galleryId ?>);">
+						<input type="button"
+							id="video-preview-queue-btn"
+							style="display:block; width:100%; margin:0 0 6px 0; box-sizing:border-box;"
+							value="Добавить в очередь"
+							onclick="return queue_video_preview(<?= $galleryId ?>);">
+						<input type="button"
+							id="video-preview-open-btn"
+							value="Открыть preview"
+							<?php if (!$previewUrl) { ?>style="display:none; width:100%; box-sizing:border-box;"<?php } else { ?>style="display:block; width:100%; box-sizing:border-box;"<?php } ?>
+							onclick="return open_video_preview_modal(this.getAttribute('data-preview-url'), <?= $galleryId ?>);"
+							data-preview-url="<?= htmlspecialchars($previewUrl, ENT_QUOTES) ?>">
+					</div>
+				</div>
 				<?php if (!isset($_GET['galid']) && $gallery['type'] == 'Movies') { ?>
 					<script type="text/javascript">
 						select(false);
@@ -1269,6 +1289,17 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 									echo "Галера не найдена<br />\n\r";
 								}
 ?>
+<style type="text/css">
+	@keyframes video-preview-spin {
+		from {
+			transform: rotate(0deg);
+		}
+
+		to {
+			transform: rotate(360deg);
+		}
+	}
+</style>
 <div id="video-preview-modal"
 	style="display:none; position:fixed; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.82); z-index:10000;">
 	<div
@@ -1308,18 +1339,94 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 		return false;
 	}
 
-	function generate_video_preview(galId) {
+	function set_video_preview_processing(isProcessing, message) {
+		var spinner = document.getElementById('video-preview-spinner');
+		var statusText = document.getElementById('video-preview-status-text');
+		var generateButton = document.getElementById('video-preview-generate-btn');
+		var queueButton = document.getElementById('video-preview-queue-btn');
+		var successBox = document.getElementById('video-preview-success');
+		var errorBox = document.getElementById('video-preview-error');
+
+		if (spinner) {
+			spinner.style.display = isProcessing ? 'inline-block' : 'none';
+		}
+
+		if (generateButton) {
+			generateButton.disabled = isProcessing;
+		}
+
+		if (queueButton) {
+			queueButton.disabled = isProcessing;
+		}
+
+		if (statusText && message) {
+			statusText.innerHTML = message;
+		}
+
+		if (isProcessing) {
+			if (successBox) {
+				successBox.style.display = 'none';
+				successBox.innerHTML = '';
+			}
+			if (errorBox) {
+				errorBox.style.display = 'none';
+				errorBox.innerHTML = '';
+			}
+		}
+	}
+
+	function set_video_preview_meta_line(id, text) {
+		var node = document.getElementById(id);
+		if (!node) {
+			return;
+		}
+
+		if (text) {
+			node.style.display = 'block';
+			node.innerHTML = text;
+		} else {
+			node.style.display = 'none';
+			node.innerHTML = '';
+		}
+	}
+
+	function set_video_preview_open_button(url) {
+		var button = document.getElementById('video-preview-open-btn');
+		if (!button) {
+			return;
+		}
+
+		if (url) {
+			button.style.display = '';
+			button.setAttribute('data-preview-url', url);
+		} else {
+			button.style.display = 'none';
+			button.setAttribute('data-preview-url', '');
+		}
+	}
+
+	function queue_video_preview(galId) {
 		var request = new XMLHttpRequest();
 		var body = 'gal_id=' + encodeURIComponent(galId);
-		request.open('POST', 'util/video_preview_generate.php', true);
+		var successBox = document.getElementById('video-preview-success');
+		var errorBox = document.getElementById('video-preview-error');
+
+		set_video_preview_processing(true, 'Постановка preview в очередь...');
+		request.open('POST', 'util/video_preview_queue.php', true);
 		request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		request.onreadystatechange = function() {
 			if (request.readyState !== 4) {
 				return;
 			}
 
+			set_video_preview_processing(false, 'Статус: queued');
+
 			if (request.status !== 200) {
-				alert('Ошибка генерации preview');
+				set_video_preview_processing(false, 'Статус: ошибка');
+				if (errorBox) {
+					errorBox.style.display = 'block';
+					errorBox.innerHTML = 'Ошибка постановки preview в очередь';
+				}
 				return;
 			}
 
@@ -1327,17 +1434,123 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			try {
 				data = JSON.parse(request.responseText);
 			} catch (e) {
-				alert('Некорректный ответ сервера');
+				set_video_preview_processing(false, 'Статус: ошибка');
+				if (errorBox) {
+					errorBox.style.display = 'block';
+					errorBox.innerHTML = 'Некорректный ответ сервера';
+				}
 				return;
 			}
 
 			if (!data || data.error) {
-				alert(data && data.error ? data.error : 'Ошибка генерации preview');
+				set_video_preview_processing(false, 'Статус: ошибка');
+				if (errorBox) {
+					errorBox.style.display = 'block';
+					errorBox.innerHTML = data && data.error ? data.error : 'Ошибка постановки preview в очередь';
+				}
+				return;
+			}
+
+			if (data.status === 'ok' && data.preview_path) {
+				set_video_preview_processing(false, 'Статус: ok');
+				if (successBox) {
+					successBox.style.display = 'block';
+					successBox.innerHTML = 'Preview уже существует.';
+				}
+				return;
+			}
+
+			if (data.status === 'processing') {
+				set_video_preview_processing(false, 'Статус: processing');
+				if (successBox) {
+					successBox.style.display = 'block';
+					successBox.innerHTML = 'Preview уже обрабатывается.';
+				}
+				return;
+			}
+
+			set_video_preview_processing(false, 'Статус: queued');
+			if (successBox) {
+				successBox.style.display = 'block';
+				successBox.innerHTML = 'Preview добавлено в очередь.';
+			}
+		};
+		request.send(body);
+		return false;
+	}
+
+	function generate_video_preview(galId) {
+		var request = new XMLHttpRequest();
+		var body = 'gal_id=' + encodeURIComponent(galId);
+		var successBox = document.getElementById('video-preview-success');
+		var errorBox = document.getElementById('video-preview-error');
+		var generateButton = document.getElementById('video-preview-generate-btn');
+		var openedFromExisting = !!document.getElementById('video-preview-open-btn').getAttribute('data-preview-url');
+
+		set_video_preview_processing(true, 'Генерация preview...');
+		request.open('POST', 'util/video_preview_generate.php', true);
+		request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+		request.onreadystatechange = function() {
+			if (request.readyState !== 4) {
+				return;
+			}
+
+			set_video_preview_processing(false, 'Статус: обработано');
+
+			if (request.status !== 200) {
+				set_video_preview_processing(false, 'Статус: ошибка');
+				if (errorBox) {
+					errorBox.style.display = 'block';
+					errorBox.innerHTML = 'Ошибка генерации preview';
+				}
+				return;
+			}
+
+			var data = null;
+			try {
+				data = JSON.parse(request.responseText);
+			} catch (e) {
+				set_video_preview_processing(false, 'Статус: ошибка');
+				if (errorBox) {
+					errorBox.style.display = 'block';
+					errorBox.innerHTML = 'Некорректный ответ сервера';
+				}
+				return;
+			}
+
+			if (!data || data.error) {
+				set_video_preview_processing(false, 'Статус: ошибка');
+				if (errorBox) {
+					errorBox.style.display = 'block';
+					errorBox.innerHTML = data && data.error ? data.error : 'Ошибка генерации preview';
+				}
 				return;
 			}
 
 			if (data.preview && data.preview.url) {
-				open_video_preview_modal(data.preview.url, galId);
+				var generatedDate = '';
+				var generatedAt = 0;
+				if (data.preview.generated_on) {
+					generatedAt = parseInt(data.preview.generated_on, 10) * 1000;
+				}
+				if (generatedAt) {
+					generatedDate = new Date(generatedAt).toLocaleString();
+				}
+
+				set_video_preview_processing(false, 'Статус: ' + (data.preview.status ? data.preview.status : 'ready'));
+				set_video_preview_meta_line('video-preview-meta-size', 'Размер: ' + ((data.preview.size || 0) / 1048576).toFixed(2) + ' Mb');
+				set_video_preview_meta_line('video-preview-meta-duration', 'Длительность: ' + ((data.preview.duration_ms || 0) / 1000).toFixed(1) + ' сек');
+				set_video_preview_meta_line('video-preview-meta-generated', generatedDate ? 'Обновлено: ' + generatedDate : '');
+				set_video_preview_open_button(data.preview.url);
+
+				if (successBox) {
+					successBox.style.display = 'block';
+					successBox.innerHTML = openedFromExisting ? 'Preview успешно обновлено.' : 'Preview успешно создано.';
+				}
+
+				if (generateButton) {
+					generateButton.value = 'Перегенерировать preview';
+				}
 			}
 		};
 		request.send(body);

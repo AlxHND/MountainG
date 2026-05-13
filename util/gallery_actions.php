@@ -22,12 +22,12 @@ if (preg_match("#^(delete|grab)$#", $_GET['action']) && (!isset($_GET['item_id']
 }
 
 require_once("../config/config.php");
-require_once("../classes/class.logger.php");
+require_once("../classes/Logger.php");
 require_once("../classes/class.db_access.php");
 require_once("../classes/class.galleries.php");
 require_once("../classes/class.models.php");
 require_once("../classes/class.sites.php");
-require_once("../classes/class.logger.php");
+require_once("../classes/Logger.php");
 require_once("../classes/class.tags.php");
 require_once("../classes/class.sources.php");
 require_once("../classes/class.new-cache.php");

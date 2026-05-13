@@ -5,11 +5,11 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 	session_start();
 }
 
-require_once ("../config/config.php");
-require_once ("../classes/class.logger.php");
-require_once ("../classes/class.db_access.php");
-require_once ("../classes/class.galleries.php");
-require_once ("../classes/class.users.php");	
+require_once("../config/config.php");
+require_once("../classes/Logger.php");
+require_once("../classes/class.db_access.php");
+require_once("../classes/class.galleries.php");
+require_once("../classes/class.users.php");
 
 $image_id = isset($_POST['thumbId']) ? intval($_POST['thumbId']) : 0;
 $gal_id = isset($_POST['galId']) ? intval($_POST['galId']) : 0;
@@ -49,4 +49,3 @@ if ($stmt && $stmt->execute(array(
 $string = "Ошибка обновления RSS-флага";
 $log = new Logger($string, true);
 echo json_encode(array('error' => $string));
-?>

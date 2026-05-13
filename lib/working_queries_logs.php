@@ -190,6 +190,106 @@ if (!function_exists('query_diag_h')) {
 		}
 		return $result;
 	}
+
+	function query_diag_fetch_video_preview_jobs($limit) {
+		$result = array();
+		$db = DB::get();
+		if (!$db) {
+			return $result;
+		}
+
+		$where = array();
+		if (($job_id = query_diag_int_filter('vp_job_id')) !== false) {
+			$where[] = "VPJ.id = " . $job_id;
+		}
+		if (($gal_id = query_diag_int_filter('vp_gal_id')) !== false) {
+			$where[] = "VPJ.gal_id = " . $gal_id;
+		}
+		if (($job_status = query_diag_enum_filter('vp_job_status', array('new','processing','done','error'))) !== false) {
+			$where[] = "VPJ.job_status = '" . $db->real_escape_string($job_status) . "'";
+		}
+		if (($callback_status = query_diag_enum_filter('vp_callback_status', array('none','pending','sent','partial','error'))) !== false) {
+			$where[] = "VPJ.callback_status = '" . $db->real_escape_string($callback_status) . "'";
+		}
+
+		$sql = "SELECT
+					VPJ.id,
+					VPJ.gal_id,
+					VPJ.preview_id,
+					VPJ.job_status,
+					VPJ.callback_status,
+					VPJ.preview_format,
+					VPJ.requested_on,
+					VPJ.started_on,
+					VPJ.finished_on,
+					VPJ.worker_ip,
+					VPJ.attempts,
+					VPJ.error_message,
+					GVP.preview_status,
+					GVP.generated_on,
+					(SELECT COUNT(*) FROM video_preview_job_callbacks VPC WHERE VPC.job_id = VPJ.id) AS callbacks_total,
+					(SELECT COUNT(*) FROM video_preview_job_callbacks VPC WHERE VPC.job_id = VPJ.id AND VPC.callback_status = 'pending') AS callbacks_pending,
+					(SELECT COUNT(*) FROM video_preview_job_callbacks VPC WHERE VPC.job_id = VPJ.id AND VPC.callback_status = 'sent') AS callbacks_sent,
+					(SELECT COUNT(*) FROM video_preview_job_callbacks VPC WHERE VPC.job_id = VPJ.id AND VPC.callback_status = 'error') AS callbacks_error
+				FROM video_preview_jobs VPJ
+				LEFT JOIN galleries_video_previews GVP ON GVP.gal_id = VPJ.gal_id";
+		if ($where) {
+			$sql .= " WHERE " . implode(" AND ", $where);
+		}
+		$sql .= " ORDER BY VPJ.requested_on DESC, VPJ.id DESC LIMIT " . (int)$limit;
+
+		$stmt = $db->prepare($sql);
+		if ($stmt && $stmt->execute()) {
+			$id = $gal_id = $preview_id = $requested_on = $started_on = $finished_on = $attempts = $generated_on = 0;
+			$callbacks_total = $callbacks_pending = $callbacks_sent = $callbacks_error = 0;
+			$job_status = $callback_status = $preview_format = $worker_ip = $error_message = $preview_status = null;
+			$stmt->bind_result(
+				$id,
+				$gal_id,
+				$preview_id,
+				$job_status,
+				$callback_status,
+				$preview_format,
+				$requested_on,
+				$started_on,
+				$finished_on,
+				$worker_ip,
+				$attempts,
+				$error_message,
+				$preview_status,
+				$generated_on,
+				$callbacks_total,
+				$callbacks_pending,
+				$callbacks_sent,
+				$callbacks_error
+			);
+			while ($stmt->fetch()) {
+				$result[] = compact(
+					"id",
+					"gal_id",
+					"preview_id",
+					"job_status",
+					"callback_status",
+					"preview_format",
+					"requested_on",
+					"started_on",
+					"finished_on",
+					"worker_ip",
+					"attempts",
+					"error_message",
+					"preview_status",
+					"generated_on",
+					"callbacks_total",
+					"callbacks_pending",
+					"callbacks_sent",
+					"callbacks_error"
+				);
+			}
+			$stmt->close();
+		}
+
+		return $result;
+	}
 }
 
 if(isset($_GET['clear_grabber_query'])) {
@@ -397,13 +497,14 @@ if (isset($_GET['type']) && $_GET['type'] == 'grab') {
     	}
     } elseif(isset($_GET['type']) && $_GET['type'] == 'show_cache_query') {
 		$limit = query_diag_limit();
-		$query_view = query_diag_enum_filter('q_view', array('changes','cache','cdn'));
+		$query_view = query_diag_enum_filter('q_view', array('changes','cache','cdn','preview'));
 		if (!$query_view) {
 			$query_view = 'changes';
 		}
 		$gallery_changes = ($query_view == 'changes') ? query_diag_fetch_gallery_changes($limit) : array();
 		$site_cache = ($query_view == 'cache') ? query_diag_fetch_site_cache($limit) : array();
 		$cdn_query = ($query_view == 'cdn') ? query_diag_fetch_cdn($limit) : array();
+		$preview_jobs = ($query_view == 'preview') ? query_diag_fetch_video_preview_jobs($limit) : array();
 ?>
 		<style>
 			.query-dashboard { max-width: 1380px; margin: 0 auto; text-align: left; font-size: 13px; color: #222; }
@@ -500,6 +601,61 @@ if (isset($_GET['type']) && $_GET['type'] == 'grab') {
 			function reset_cdn_query(galId) {
 				return queryPost('util/query.cdn_sync.reset_element.php', {gal_id: galId}, 'cdn_sync_query_' + galId, 'Вернуть CDN статус в new?');
 			}
+			function process_video_preview_job(jobId) {
+				if (!window.confirm('Запустить обработку preview job сейчас?')) {
+					return false;
+				}
+				var data = new URLSearchParams();
+				data.append('job_id', jobId);
+				fetch('util/query.video_preview.process_job.php', {
+					method: 'POST',
+					headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+					body: data.toString()
+				}).then(function(response) {
+					return response.json();
+				}).then(function(result) {
+					if (result.success) {
+						window.location.reload();
+					} else {
+						alert(result.error || 'Ошибка обработки preview job');
+					}
+				}).catch(function() {
+					alert('Ошибка запроса');
+				});
+				return false;
+			}
+			function remove_video_preview_job(jobId) {
+				if (!window.confirm('Удалить preview job из очереди?')) {
+					return false;
+				}
+				var data = new URLSearchParams();
+				data.append('job_id', jobId);
+				fetch('util/query.video_preview.remove_job.php', {
+					method: 'POST',
+					headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+					body: data.toString()
+				}).then(function(response) {
+					return response.json();
+				}).then(function(result) {
+					if (result.success) {
+						var row = document.getElementById('video_preview_job_' + jobId);
+						if (row) {
+							row.style.transition = 'opacity 0.2s ease';
+							row.style.opacity = '0';
+							window.setTimeout(function() {
+								if (row.parentNode) {
+									row.parentNode.removeChild(row);
+								}
+							}, 220);
+						}
+					} else {
+						alert(result.error || 'Ошибка удаления preview job');
+					}
+				}).catch(function() {
+					alert('Ошибка запроса');
+				});
+				return false;
+			}
 		</script>
 		<div class="query-dashboard">
 			<h2>Очереди кеша и CDN</h2>
@@ -507,6 +663,7 @@ if (isset($_GET['type']) && $_GET['type'] == 'grab') {
 				<a class="<?=$query_view == 'changes' ? 'active' : ''?>" href="index.php?act=queries&amp;type=show_cache_query&amp;q_view=changes&amp;q_limit=<?=$limit?>">Изменения галерей</a>
 				<a class="<?=$query_view == 'cache' ? 'active' : ''?>" href="index.php?act=queries&amp;type=show_cache_query&amp;q_view=cache&amp;q_limit=<?=$limit?>">Redis cache</a>
 				<a class="<?=$query_view == 'cdn' ? 'active' : ''?>" href="index.php?act=queries&amp;type=show_cache_query&amp;q_view=cdn&amp;q_limit=<?=$limit?>">CDN sync</a>
+				<a class="<?=$query_view == 'preview' ? 'active' : ''?>" href="index.php?act=queries&amp;type=show_cache_query&amp;q_view=preview&amp;q_limit=<?=$limit?>">Video preview</a>
 			</div>
 			<form class="query-toolbar" method="get">
 				<input type="hidden" name="act" value="queries">
@@ -750,6 +907,90 @@ if (isset($_GET['type']) && $_GET['type'] == 'grab') {
 					</tr>
 				<?php }} else { ?>
 					<tr><td colspan="6">CDN очередь пуста по выбранным фильтрам</td></tr>
+				<?php } ?>
+			</table>
+			<?php } ?>
+
+			<?php if($query_view == 'preview') { ?>
+			<h2>Video preview jobs</h2>
+			<form class="query-toolbar" method="get">
+				<input type="hidden" name="act" value="queries">
+				<input type="hidden" name="type" value="show_cache_query">
+				<input type="hidden" name="q_view" value="preview">
+				<input type="hidden" name="q_limit" value="<?=$limit?>">
+				<label>Job ID <input type="number" name="vp_job_id" value="<?=query_diag_h(isset($_GET['vp_job_id']) ? $_GET['vp_job_id'] : '')?>"></label>
+				<label>Gal ID <input type="number" name="vp_gal_id" value="<?=query_diag_h(isset($_GET['vp_gal_id']) ? $_GET['vp_gal_id'] : '')?>"></label>
+				<label>Job status
+					<select name="vp_job_status">
+						<option value="">Все</option>
+						<?php foreach(array('new','processing','done','error') as $option) { ?>
+							<option value="<?=$option?>"<?=isset($_GET['vp_job_status']) && $_GET['vp_job_status'] == $option ? ' selected' : ''?>><?=$option?></option>
+						<?php } ?>
+					</select>
+				</label>
+				<label>Callback
+					<select name="vp_callback_status">
+						<option value="">Все</option>
+						<?php foreach(array('none','pending','sent','partial','error') as $option) { ?>
+							<option value="<?=$option?>"<?=isset($_GET['vp_callback_status']) && $_GET['vp_callback_status'] == $option ? ' selected' : ''?>><?=$option?></option>
+						<?php } ?>
+					</select>
+				</label>
+				<button type="submit">Фильтр</button>
+			</form>
+			<div class="query-count">Показано: <?=count($preview_jobs)?></div>
+			<table class="query-table">
+				<tr>
+					<th style="width:60px;">Job</th>
+					<th style="width:85px;">Gal</th>
+					<th style="width:80px;">Preview</th>
+					<th style="width:95px;">Job status</th>
+					<th style="width:100px;">Preview status</th>
+					<th style="width:95px;">Callback</th>
+					<th style="width:110px;">Format</th>
+					<th>Time</th>
+					<th style="width:95px;">Worker</th>
+					<th style="width:85px;">Attempts</th>
+					<th style="width:120px;">Callbacks</th>
+					<th>Error</th>
+					<th style="width:110px;">Actions</th>
+				</tr>
+				<?php if($preview_jobs) { foreach($preview_jobs as $row) {
+					$row_class = $row['job_status'] === 'error' ? 'query-error' : ($row['job_status'] === 'done' ? 'query-ok' : 'query-processed');
+				?>
+					<tr id="video_preview_job_<?=$row['id']?>" class="<?=$row_class?>">
+						<td>#<?=$row['id']?></td>
+						<td><a target="_blank" href="index.php?act=galleries&amp;galid=<?=$row['gal_id']?>"><?=$row['gal_id']?></a></td>
+						<td><?=$row['preview_id'] ? '#'.$row['preview_id'] : '&mdash;'?></td>
+						<td><?=query_diag_h($row['job_status'])?></td>
+						<td><?=query_diag_h($row['preview_status'])?></td>
+						<td><?=query_diag_h($row['callback_status'])?></td>
+						<td><?=query_diag_h($row['preview_format'])?></td>
+						<td>
+							<div>requested: <?=query_diag_time($row['requested_on'])?></div>
+							<div>started: <?=query_diag_time($row['started_on'])?></div>
+							<div>finished: <?=query_diag_time($row['finished_on'])?></div>
+							<div>generated: <?=query_diag_time($row['generated_on'])?></div>
+							<div class="query-muted">age: <?=query_diag_age($row['requested_on'])?></div>
+						</td>
+						<td><?=query_diag_h($row['worker_ip'])?></td>
+						<td><?=$row['attempts']?></td>
+						<td>
+							<div>total: <?=$row['callbacks_total']?></div>
+							<div>pending: <?=$row['callbacks_pending']?></div>
+							<div>sent: <?=$row['callbacks_sent']?></div>
+							<div>error: <?=$row['callbacks_error']?></div>
+						</td>
+						<td class="<?=$row['job_status'] === 'error' ? 'query-error-msg' : 'query-muted'?>"><?=query_diag_h($row['error_message'])?></td>
+						<td>
+							<div class="query-actions">
+								<button class="reset" onclick="return process_video_preview_job(<?=$row['id']?>)">Process</button>
+								<button class="delete" onclick="return remove_video_preview_job(<?=$row['id']?>)">Удалить</button>
+							</div>
+						</td>
+					</tr>
+				<?php }} else { ?>
+					<tr><td colspan="13">Очередь video preview пуста по выбранным фильтрам</td></tr>
 				<?php } ?>
 			</table>
 			<?php } ?>

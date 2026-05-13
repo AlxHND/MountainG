@@ -2160,6 +2160,7 @@ class Galleries
 				}
 				// предыдущий статус передается для того чтобы получить имя файла
 				$this->deleteVideoFile($id, $prevStatus);
+				$this->deleteVideoPreview($id);
 
 				if ($prevStatus == 'OK' || $prevStatus == 'uploaded') {
 					$this->deleteVideoFromGalleriesVideos($id);
@@ -4531,13 +4532,25 @@ class Galleries
 					}
 				}
 				if (!$only_horiz_resize) {
-					$this->setStatus($gallery['id'], 'uploaded');
-
 					if ($type == 'embed') {
 						$this->setContentType($gallery['id'], 'Movies');
 						$gallery['type'] = 'Movies';
 					} elseif ($gallery['type'] == 'Movies') {
 						$this->addVideoToGalleriesVideosTable($gallery['id']); // 2017-02-01 Update
+						$previewResult = $this->generateVideoPreview($gallery['id'], array(
+							'width' => defined('VIDEO_PREVIEWS_DEFAULT_WIDTH') ? (int)VIDEO_PREVIEWS_DEFAULT_WIDTH : 320,
+							'height' => defined('VIDEO_PREVIEWS_DEFAULT_HEIGHT') ? (int)VIDEO_PREVIEWS_DEFAULT_HEIGHT : 180
+						));
+						if (!$previewResult) {
+							$previewInfo = $this->getVideoPreviewInfo($gallery['id']);
+							$previewError = ($previewInfo && !empty($previewInfo['error_message'])) ? $previewInfo['error_message'] : 'preview generation failed';
+							$log = new Logger(__METHOD__ . ": preview generation failed for GID#" . $gallery['id'] . ", " . $previewError, true);
+						}
+					}
+
+					$this->setStatus($gallery['id'], 'uploaded');
+
+					if ($gallery['type'] == 'Movies') {
 						if (defined("VIDEOS_SYNC_DOMAIN")) {
 							$this->syncCdnVideo($gallery['id']);
 						}
@@ -4898,28 +4911,27 @@ class Galleries
 
 	public function getVideoPreviewPath($gal_id, $must_exist = false, $format = 'mp4')
 	{
-		$gal_id = (int)$gal_id;
-		$format = strtolower(trim((string)$format));
-
-		if ($gal_id <= 0 || !preg_match('#^(mp4|webm)$#', $format)) {
-			return false;
-		}
-
-		$gallery_folder = $this->galleryContentFolder($gal_id);
-		if (!$gallery_folder) {
-			return false;
-		}
-
-		$result = UPLOADFOLDER . $gallery_folder . "/" . $gal_id . ".preview." . $format;
-
-		if ($must_exist && !is_file($result)) {
-			return false;
-		}
-
-		return $result;
+		$storage = $this->getVideoPreviewStorageInfo($gal_id, $format, false, $must_exist);
+		return ($storage && isset($storage['path'])) ? $storage['path'] : false;
 	}
 
 	public function getVideoPreviewPublicUrl($gal_id, $must_exist = false, $format = 'mp4')
+	{
+		$storage = $this->getVideoPreviewStorageInfo($gal_id, $format, false, $must_exist);
+		return ($storage && isset($storage['url'])) ? $storage['url'] : false;
+	}
+
+	public function getVideoPreviewRelativePath($gal_id, $must_exist = false, $format = 'mp4')
+	{
+		$storage = $this->getVideoPreviewStorageInfo($gal_id, $format, false, $must_exist);
+		if (!$storage || !isset($storage['relative_path'])) {
+			return false;
+		}
+
+		return ltrim($storage['relative_path'], '/');
+	}
+
+	private function getVideoPreviewStorageInfo($gal_id, $format = 'mp4', $previewInfo = false, $must_exist = false, $widthOverride = 0)
 	{
 		$gal_id = (int)$gal_id;
 		$format = strtolower(trim((string)$format));
@@ -4928,19 +4940,47 @@ class Galleries
 			return false;
 		}
 
-		$gallery_folder = $this->galleryContentFolder($gal_id);
-		if (!$gallery_folder) {
+		if (!$previewInfo) {
+			$previewInfo = $this->getVideoPreviewInfo($gal_id);
+		}
+
+		if (!$previewInfo || empty($previewInfo['id'])) {
 			return false;
 		}
 
-		$result = $gallery_folder . "/" . $gal_id . ".preview." . $format;
-		$full_path = UPLOADFOLDER . $result;
-
-		if ($must_exist && !is_file($full_path)) {
+		$previewId = (int)$previewInfo['id'];
+		if ($previewId <= 0) {
 			return false;
 		}
 
-		return $result;
+		$previewWidth = (int)$widthOverride;
+		if ($previewWidth <= 0) {
+			$previewWidth = isset($previewInfo['preview_width']) ? (int)$previewInfo['preview_width'] : 0;
+		}
+		if ($previewWidth <= 0) {
+			$previewWidth = defined('VIDEO_PREVIEWS_DEFAULT_WIDTH') ? (int)VIDEO_PREVIEWS_DEFAULT_WIDTH : 320;
+		}
+
+		$basePath = rtrim(defined('VIDEO_PREVIEWS_FOLDER') ? VIDEO_PREVIEWS_FOLDER : (dirname(UPLOADFOLDER) . '/video_previews_mgx'), '/');
+		$baseUrl = rtrim(defined('VIDEO_PREVIEWS_URL') ? VIDEO_PREVIEWS_URL : (HOSTING . '/video_previews_mgx'), '/');
+		$galleryBucket = substr((string)$gal_id, 0, 1);
+		$previewBucket = substr((string)$previewId, 0, 1);
+		$fileName = $previewWidth . "_" . $previewId . "." . $format;
+		$relativePath = "/" . $galleryBucket . "/" . $previewBucket . "/" . $fileName;
+		$fullPath = $basePath . $relativePath;
+		$fullUrl = $baseUrl . $relativePath;
+
+		if ($must_exist && !is_file($fullPath)) {
+			return false;
+		}
+
+		return array(
+			'id' => $previewId,
+			'width' => $previewWidth,
+			'relative_path' => $relativePath,
+			'path' => $fullPath,
+			'url' => $fullUrl
+		);
 	}
 
 	public function getVideoPreviewInfo($gal_id)
@@ -4967,6 +5007,805 @@ class Galleries
 		}
 	}
 
+	public function canRequestVideoPreview(int $gal_id, $allowUploaded = false)
+	{
+		if ($gal_id <= 0 || $gal_type = $this->getGalleryType($gal_id) !== 'Movies') {
+			Logger::error(__METHOD__ . "#{$gal_id}, '{$gal_type}' - не Movies");
+			return false;
+		}
+
+		$status = $this->getGalleryStatus($gal_id);
+		if ($allowUploaded) {
+			Logger::error(__METHOD__ . "#{$gal_id} status: '{$status}'");
+			return in_array($status, array('uploaded', 'OK'), true);
+		}
+
+		return $status === 'OK';
+	}
+
+	private function getActiveVideoPreviewJob($gal_id)
+	{
+		$gal_id = (int)$gal_id;
+		if ($gal_id <= 0) {
+			return false;
+		}
+
+		try {
+			$sql = "SELECT *
+					FROM video_preview_jobs
+					WHERE gal_id = :gal_id
+					  AND job_status IN ('new', 'processing')
+					ORDER BY id ASC
+					LIMIT 1";
+			$stmt = $this->_db->prepare($sql);
+			$stmt->execute(array(':gal_id' => $gal_id));
+			$result = $stmt->fetch(PDO::FETCH_ASSOC);
+			return is_array($result) ? $result : false;
+		} catch (PDOException $e) {
+			$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+			return false;
+		}
+	}
+
+	private function getVideoPreviewJobById($job_id)
+	{
+		$job_id = (int)$job_id;
+		if ($job_id <= 0) {
+			return false;
+		}
+
+		try {
+			$stmt = $this->_db->prepare("SELECT * FROM video_preview_jobs WHERE id = :id LIMIT 1");
+			$stmt->execute(array(':id' => $job_id));
+			$result = $stmt->fetch(PDO::FETCH_ASSOC);
+			return is_array($result) ? $result : false;
+		} catch (PDOException $e) {
+			$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+			return false;
+		}
+	}
+
+	private function updateVideoPreviewJobStatus($job_id, array $data)
+	{
+		$job_id = (int)$job_id;
+		if ($job_id <= 0 || !$data) {
+			return false;
+		}
+
+		$allowed = array(
+			'preview_id',
+			'job_status',
+			'callback_status',
+			'preview_format',
+			'requested_on',
+			'started_on',
+			'finished_on',
+			'worker_ip',
+			'attempts',
+			'error_message'
+		);
+
+		$setParts = array();
+		$params = array(':id' => $job_id);
+
+		foreach ($data as $field => $value) {
+			if (!in_array($field, $allowed, true)) {
+				continue;
+			}
+
+			$setParts[] = $field . " = :" . $field;
+			$params[":" . $field] = $value;
+		}
+
+		if (!$setParts) {
+			return false;
+		}
+
+		try {
+			$sql = "UPDATE video_preview_jobs SET " . implode(", ", $setParts) . " WHERE id = :id";
+			$stmt = $this->_db->prepare($sql);
+			return $stmt->execute($params);
+		} catch (PDOException $e) {
+			$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+			return false;
+		}
+	}
+
+	private function addVideoPreviewJobCallback($job_id, $gal_id, $callback_url)
+	{
+		$job_id = (int)$job_id;
+		$gal_id = (int)$gal_id;
+		$callback_url = trim((string)$callback_url);
+
+		if ($job_id <= 0 || $gal_id <= 0 || $callback_url === '') {
+			return false;
+		}
+
+		try {
+			$sql = "SELECT *
+					FROM video_preview_job_callbacks
+					WHERE job_id = :job_id
+					  AND callback_url = :callback_url
+					  AND callback_status = 'pending'
+					ORDER BY id DESC
+					LIMIT 1";
+			$stmt = $this->_db->prepare($sql);
+			$stmt->execute(array(
+				':job_id' => $job_id,
+				':callback_url' => $callback_url
+			));
+			$existing = $stmt->fetch(PDO::FETCH_ASSOC);
+			if ($existing) {
+				return $existing;
+			}
+
+			$callbackToken = md5($job_id . '|' . $gal_id . '|' . $callback_url . '|' . microtime(true) . '|' . mt_rand(1000, 999999));
+			$sql = "INSERT INTO video_preview_job_callbacks
+					(job_id, gal_id, callback_url, callback_token, callback_status, callback_attempts, callback_last_on, callback_error, added_on, notified_on)
+					VALUES
+					(:job_id, :gal_id, :callback_url, :callback_token, 'pending', 0, 0, '', :added_on, 0)";
+			$stmt = $this->_db->prepare($sql);
+			$stmt->execute(array(
+				':job_id' => $job_id,
+				':gal_id' => $gal_id,
+				':callback_url' => $callback_url,
+				':callback_token' => $callbackToken,
+				':added_on' => time()
+			));
+
+			return array(
+				'id' => (int)$this->_db->lastInsertId(),
+				'job_id' => $job_id,
+				'gal_id' => $gal_id,
+				'callback_url' => $callback_url,
+				'callback_token' => $callbackToken,
+				'callback_status' => 'pending'
+			);
+		} catch (PDOException $e) {
+			$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+			return false;
+		}
+	}
+
+	private function updateVideoPreviewJobCallbackStatus($callback_id, $status, $error = '', $attempts = 0)
+	{
+		$callback_id = (int)$callback_id;
+		$attempts = (int)$attempts;
+		$error = substr(trim((string)$error), 0, 255);
+		if ($callback_id <= 0 || !preg_match('#^(pending|sent|error)$#', $status)) {
+			return false;
+		}
+
+		try {
+			$stmt = $this->_db->prepare("UPDATE video_preview_job_callbacks
+										 SET callback_status = :callback_status,
+											 callback_attempts = :callback_attempts,
+											 callback_last_on = :callback_last_on,
+											 callback_error = :callback_error,
+											 notified_on = :notified_on
+										 WHERE id = :id");
+			return $stmt->execute(array(
+				':callback_status' => $status,
+				':callback_attempts' => $attempts,
+				':callback_last_on' => time(),
+				':callback_error' => $error,
+				':notified_on' => ($status === 'sent') ? time() : 0,
+				':id' => $callback_id
+			));
+		} catch (PDOException $e) {
+			$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+			return false;
+		}
+	}
+
+	private function sendVideoPreviewCallback($callback_url, array $payload, &$responseBody = '')
+	{
+		$callback_url = trim((string)$callback_url);
+		if ($callback_url === '' || !function_exists('curl_init')) {
+			$responseBody = 'curl unavailable';
+			return false;
+		}
+
+		$process = curl_init($callback_url);
+		if (!$process) {
+			$responseBody = 'curl init failed';
+			return false;
+		}
+
+		$postBody = http_build_query($payload, '', '&');
+		curl_setopt($process, CURLOPT_POST, 1);
+		curl_setopt($process, CURLOPT_POSTFIELDS, $postBody);
+		curl_setopt($process, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($process, CURLOPT_TIMEOUT, defined('VIDEO_PREVIEW_CALLBACK_TIMEOUT') ? (int)VIDEO_PREVIEW_CALLBACK_TIMEOUT : 15);
+		curl_setopt($process, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($process, CURLOPT_HTTPHEADER, array(
+			'Content-Type: application/x-www-form-urlencoded',
+			'Content-Length: ' . strlen($postBody)
+		));
+
+		$responseBody = curl_exec($process);
+		$httpCode = (int)curl_getinfo($process, CURLINFO_HTTP_CODE);
+		$curlError = curl_error($process);
+		curl_close($process);
+
+		if ($responseBody === false || $curlError) {
+			$responseBody = $curlError ? $curlError : 'empty callback response';
+			return false;
+		}
+
+		if ($httpCode < 200 || $httpCode >= 300) {
+			$responseBody = 'HTTP ' . $httpCode . ': ' . substr((string)$responseBody, 0, 200);
+			return false;
+		}
+
+		return true;
+	}
+
+	private function flushVideoPreviewCallbacks($job_id)
+	{
+		$job_id = (int)$job_id;
+		if ($job_id <= 0) {
+			return false;
+		}
+
+		$job = $this->getVideoPreviewJobById($job_id);
+		if (!$job) {
+			return false;
+		}
+
+		try {
+			$stmt = $this->_db->prepare("SELECT *
+										 FROM video_preview_job_callbacks
+										 WHERE job_id = :job_id
+										   AND callback_status = 'pending'
+										 ORDER BY id ASC");
+			$stmt->execute(array(':job_id' => $job_id));
+			$callbacks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+		} catch (PDOException $e) {
+			$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+			return false;
+		}
+
+		if (!$callbacks) {
+			$this->updateVideoPreviewJobStatus($job_id, array('callback_status' => 'none'));
+			return true;
+		}
+
+		$previewPath = false;
+		if ($job['job_status'] === 'done') {
+			$previewPath = $this->getVideoPreviewRelativePath($job['gal_id'], true, $job['preview_format']);
+		}
+
+		$allSent = true;
+		$sentCount = 0;
+		foreach ($callbacks as $callback) {
+			$attempts = isset($callback['callback_attempts']) ? ((int)$callback['callback_attempts'] + 1) : 1;
+			$payload = array(
+				'job_id' => (int)$job['id'],
+				'gal_id' => (int)$job['gal_id'],
+				'status' => ($job['job_status'] === 'done' ? 'ok' : 'fail'),
+				'preview_path' => $previewPath ? $previewPath : '',
+				'error' => ($job['job_status'] === 'done' ? '' : (string)$job['error_message']),
+				'callback_token' => $callback['callback_token']
+			);
+
+			$responseBody = '';
+			$sent = $this->sendVideoPreviewCallback($callback['callback_url'], $payload, $responseBody);
+			if ($sent) {
+				$sentCount++;
+				$this->updateVideoPreviewJobCallbackStatus($callback['id'], 'sent', '', $attempts);
+			} else {
+				$allSent = false;
+				$this->updateVideoPreviewJobCallbackStatus($callback['id'], 'error', substr((string)$responseBody, 0, 255), $attempts);
+				$log = new Logger(__METHOD__ . ": callback failed for job#" . $job_id . ", url '" . $callback['callback_url'] . "', response '" . substr((string)$responseBody, 0, 200) . "'", true);
+			}
+		}
+
+		$jobCallbackStatus = 'error';
+		if ($allSent) {
+			$jobCallbackStatus = 'sent';
+		} elseif ($sentCount > 0) {
+			$jobCallbackStatus = 'partial';
+		}
+
+		$this->updateVideoPreviewJobStatus($job_id, array('callback_status' => $jobCallbackStatus));
+		return $allSent;
+	}
+
+	public function queueVideoPreviewJob($gal_id, $request_ip = '')
+	{
+		$gal_id = (int)$gal_id;
+		$request_ip = trim((string)$request_ip);
+
+		if (!$this->canRequestVideoPreview($gal_id, false)) {
+			return array('error' => 'Для постановки preview в очередь галерея должна быть Movies и иметь статус OK');
+		}
+
+		$previewInfo = $this->getVideoPreviewInfo($gal_id);
+		$previewFormat = ($previewInfo && !empty($previewInfo['preview_format'])) ? $previewInfo['preview_format'] : 'mp4';
+		$existingPath = $this->getVideoPreviewRelativePath($gal_id, true, $previewFormat);
+		if ($previewInfo && $previewInfo['preview_status'] === 'ok' && $existingPath) {
+			return array(
+				'status' => 'ok',
+				'gal_id' => $gal_id,
+				'preview_path' => $existingPath
+			);
+		}
+
+		if (!$this->queueVideoPreview($gal_id)) {
+			return array('error' => 'Не удалось подготовить preview к очереди');
+		}
+
+		$previewInfo = $this->getVideoPreviewInfo($gal_id);
+		$previewId = ($previewInfo && !empty($previewInfo['id'])) ? (int)$previewInfo['id'] : 0;
+		$previewFormat = ($previewInfo && !empty($previewInfo['preview_format'])) ? $previewInfo['preview_format'] : 'mp4';
+
+		$job = $this->getActiveVideoPreviewJob($gal_id);
+		if ($job) {
+			return array(
+				'status' => ($job['job_status'] === 'processing') ? 'processing' : 'queued',
+				'gal_id' => $gal_id,
+				'job_id' => (int)$job['id']
+			);
+		}
+
+		try {
+			$stmt = $this->_db->prepare("INSERT INTO video_preview_jobs
+				(gal_id, preview_id, job_status, callback_status, preview_format, requested_on, started_on, finished_on, worker_ip, attempts, error_message)
+				VALUES
+				(:gal_id, :preview_id, 'new', 'none', :preview_format, :requested_on, 0, 0, :worker_ip, 0, '')");
+			$stmt->execute(array(
+				':gal_id' => $gal_id,
+				':preview_id' => $previewId,
+				':preview_format' => $previewFormat,
+				':requested_on' => time(),
+				':worker_ip' => $request_ip
+			));
+			$jobId = (int)$this->_db->lastInsertId();
+			$this->updateVideoPreviewRecord($gal_id, array(
+				'preview_status' => 'queued',
+				'updated_on' => time(),
+				'error_message' => ''
+			));
+
+			return array(
+				'status' => 'queued',
+				'gal_id' => $gal_id,
+				'job_id' => $jobId
+			);
+		} catch (PDOException $e) {
+			$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+			return array('error' => 'Не удалось создать preview job');
+		}
+	}
+
+	public function requestVideoPreview($gal_id, $callback_url = '', $request_ip = '')
+	{
+		$gal_id = (int)$gal_id;
+		$callback_url = trim((string)$callback_url);
+		$request_ip = trim((string)$request_ip);
+
+		if ($gal_id <= 0) {
+			return array('error' => 'Некорректный ID галереи');
+		}
+
+		if (!$this->canRequestVideoPreview($gal_id, false)) {
+			return array('error' => 'Для запроса preview галерея должна быть Movies и иметь статус OK');
+		}
+
+		$previewInfo = $this->getVideoPreviewInfo($gal_id);
+		$previewFormat = ($previewInfo && !empty($previewInfo['preview_format'])) ? $previewInfo['preview_format'] : 'mp4';
+		$existingPath = $this->getVideoPreviewRelativePath($gal_id, true, $previewFormat);
+
+		if ($previewInfo && $previewInfo['preview_status'] === 'ok' && $existingPath) {
+			return array(
+				'status' => 'ok',
+				'gal_id' => $gal_id,
+				'preview_path' => $existingPath
+			);
+		}
+
+		if ($callback_url === '') {
+			return array('error' => 'Для постановки в очередь нужен callback_url');
+		}
+
+		if (!$this->queueVideoPreview($gal_id)) {
+			return array('error' => 'Не удалось подготовить preview к очереди');
+		}
+
+		$previewInfo = $this->getVideoPreviewInfo($gal_id);
+		$previewId = ($previewInfo && !empty($previewInfo['id'])) ? (int)$previewInfo['id'] : 0;
+		$previewFormat = ($previewInfo && !empty($previewInfo['preview_format'])) ? $previewInfo['preview_format'] : 'mp4';
+
+		$job = $this->getActiveVideoPreviewJob($gal_id);
+		if (!$job) {
+			try {
+				$stmt = $this->_db->prepare("INSERT INTO video_preview_jobs
+					(gal_id, preview_id, job_status, callback_status, preview_format, requested_on, started_on, finished_on, worker_ip, attempts, error_message)
+					VALUES
+					(:gal_id, :preview_id, 'new', 'pending', :preview_format, :requested_on, 0, 0, :worker_ip, 0, '')");
+				$stmt->execute(array(
+					':gal_id' => $gal_id,
+					':preview_id' => $previewId,
+					':preview_format' => $previewFormat,
+					':requested_on' => time(),
+					':worker_ip' => $request_ip
+				));
+				$jobId = (int)$this->_db->lastInsertId();
+				$this->updateVideoPreviewRecord($gal_id, array(
+					'preview_status' => 'queued',
+					'updated_on' => time(),
+					'error_message' => ''
+				));
+				$job = $this->getVideoPreviewJobById($jobId);
+			} catch (PDOException $e) {
+				$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+				return array('error' => 'Не удалось создать preview job');
+			}
+		} else {
+			$this->updateVideoPreviewJobStatus($job['id'], array('callback_status' => 'pending'));
+		}
+
+		$callbackInfo = $this->addVideoPreviewJobCallback($job['id'], $gal_id, $callback_url);
+		if (!$callbackInfo) {
+			return array('error' => 'Не удалось сохранить callback');
+		}
+
+		return array(
+			'status' => 'queued',
+			'gal_id' => $gal_id,
+			'job_id' => (int)$job['id'],
+			'callback_token' => $callbackInfo['callback_token']
+		);
+	}
+
+	public function getNextVideoPreviewJob($worker_ip = '')
+	{
+		$worker_ip = trim((string)$worker_ip);
+
+		for ($attempt = 0; $attempt < 3; $attempt++) {
+			try {
+				$stmt = $this->_db->prepare("SELECT *
+											 FROM video_preview_jobs
+											 WHERE job_status = 'new'
+											 ORDER BY requested_on ASC, id ASC
+											 LIMIT 1");
+				$stmt->execute();
+				$job = $stmt->fetch(PDO::FETCH_ASSOC);
+				if (!$job) {
+					return false;
+				}
+
+				$jobId = (int)$job['id'];
+				$updated = $this->_db->prepare("UPDATE video_preview_jobs
+												SET job_status = 'processing',
+													started_on = :started_on,
+													worker_ip = :worker_ip,
+													attempts = attempts + 1
+												WHERE id = :id
+												  AND job_status = 'new'");
+				$updated->execute(array(
+					':started_on' => time(),
+					':worker_ip' => $worker_ip,
+					':id' => $jobId
+				));
+
+				if ($updated->rowCount() < 1) {
+					continue;
+				}
+
+				$job = $this->getVideoPreviewJobById($jobId);
+				if (!$job) {
+					return false;
+				}
+
+				$gal_id = (int)$job['gal_id'];
+				$previewInfo = $this->getVideoPreviewInfo($gal_id);
+				$previewFormat = ($previewInfo && !empty($previewInfo['preview_format'])) ? $previewInfo['preview_format'] : 'mp4';
+				$storage = $this->getVideoPreviewStorageInfo($gal_id, $previewFormat, $previewInfo, false);
+				$this->updateVideoPreviewRecord($gal_id, array(
+					'preview_status' => 'processing',
+					'updated_on' => time(),
+					'error_message' => ''
+				));
+
+				return array(
+					'job_id' => $jobId,
+					'gal_id' => $gal_id,
+					'source_video_path' => $this->getVideoFilePath($gal_id),
+					'preview_path' => $storage ? $storage['path'] : '',
+					'preview_relative_path' => $storage ? ltrim($storage['relative_path'], '/') : '',
+					'preview_url' => $storage ? $storage['url'] : '',
+					'preview_format' => $previewFormat,
+					'preview_width' => ($previewInfo && !empty($previewInfo['preview_width'])) ? (int)$previewInfo['preview_width'] : (defined('VIDEO_PREVIEWS_DEFAULT_WIDTH') ? (int)VIDEO_PREVIEWS_DEFAULT_WIDTH : 320),
+					'preview_height' => ($previewInfo && !empty($previewInfo['preview_height'])) ? (int)$previewInfo['preview_height'] : (defined('VIDEO_PREVIEWS_DEFAULT_HEIGHT') ? (int)VIDEO_PREVIEWS_DEFAULT_HEIGHT : 180),
+					'clip_count' => ($previewInfo && !empty($previewInfo['clip_count'])) ? (int)$previewInfo['clip_count'] : 10,
+					'clip_length_ms' => ($previewInfo && !empty($previewInfo['clip_length_ms'])) ? (int)$previewInfo['clip_length_ms'] : 1000,
+					'start_offset' => ($previewInfo && isset($previewInfo['start_offset'])) ? (int)$previewInfo['start_offset'] : 5,
+					'end_offset' => ($previewInfo && isset($previewInfo['end_offset'])) ? (int)$previewInfo['end_offset'] : 5
+				);
+			} catch (PDOException $e) {
+				$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+				return false;
+			}
+		}
+
+		return false;
+	}
+
+	public function refreshVideoPreviewMetaFromFile($gal_id)
+	{
+		$gal_id = (int)$gal_id;
+		if ($gal_id <= 0) {
+			return false;
+		}
+
+		$previewInfo = $this->getVideoPreviewInfo($gal_id);
+		if (!$previewInfo) {
+			return false;
+		}
+
+		$format = !empty($previewInfo['preview_format']) ? $previewInfo['preview_format'] : 'mp4';
+		$storage = $this->getVideoPreviewStorageInfo($gal_id, $format, $previewInfo, true);
+		if (!$storage || empty($storage['path']) || !is_file($storage['path'])) {
+			return false;
+		}
+
+		if (!class_exists('VideoUtils', false)) {
+			require_once __DIR__ . '/class.video.php';
+		}
+
+		$video = new VideoUtils("temp");
+		$previewSize = filesize($storage['path']);
+		$previewDuration = $video->GetDuration($storage['path']);
+		$previewFrame = $video->GetSize($storage['path']);
+		$previewBitrate = $video->GetBitrate($storage['path']);
+
+		$width = 0;
+		$height = 0;
+		if (is_array($previewFrame) && isset($previewFrame[0], $previewFrame[1])) {
+			$width = (int)$previewFrame[0];
+			$height = (int)$previewFrame[1];
+		}
+
+		$this->updateVideoPreviewRecord($gal_id, array(
+			'preview_status' => 'ok',
+			'source_video_size' => (int)$this->getVideoSizeFromFile($gal_id),
+			'preview_size' => (int)$previewSize,
+			'preview_width' => $width,
+			'preview_height' => $height,
+			'preview_duration_ms' => (int)$previewDuration * 1000,
+			'preview_bitrate' => (int)$previewBitrate,
+			'generated_on' => time(),
+			'updated_on' => time(),
+			'error_message' => ''
+		));
+
+		$result = $this->getVideoPreviewInfo($gal_id);
+		if ($result) {
+			$result['public_url'] = $this->getVideoPreviewPublicUrl($gal_id, true, $format);
+			$result['relative_path'] = $this->getVideoPreviewRelativePath($gal_id, true, $format);
+			$result['full_path'] = $storage['path'];
+		}
+
+		return $result;
+	}
+
+	public function completeVideoPreviewJob($job_id, $status = 'ok', $error_message = '', $worker_ip = '')
+	{
+		$job_id = (int)$job_id;
+		$status = strtolower(trim((string)$status));
+		$error_message = substr(trim((string)$error_message), 0, 255);
+		$worker_ip = trim((string)$worker_ip);
+
+		if ($job_id <= 0 || !preg_match('#^(ok|fail|error)$#', $status)) {
+			return array('error' => 'Wrong job status');
+		}
+
+		$job = $this->getVideoPreviewJobById($job_id);
+		if (!$job) {
+			return array('error' => 'Job not found');
+		}
+
+		$gal_id = (int)$job['gal_id'];
+		$jobUpdate = array(
+			'finished_on' => time(),
+			'worker_ip' => $worker_ip
+		);
+
+		$resultPreview = false;
+		if ($status === 'ok') {
+			$resultPreview = $this->refreshVideoPreviewMetaFromFile($gal_id);
+			if (!$resultPreview || empty($resultPreview['relative_path'])) {
+				$status = 'error';
+				$error_message = 'Preview file not found after worker completion';
+			}
+		}
+
+		if ($status === 'ok') {
+			$jobUpdate['job_status'] = 'done';
+			$jobUpdate['error_message'] = '';
+			$jobUpdate['preview_id'] = !empty($job['preview_id']) ? (int)$job['preview_id'] : (($resultPreview && !empty($resultPreview['id'])) ? (int)$resultPreview['id'] : 0);
+		} else {
+			$jobUpdate['job_status'] = 'error';
+			$jobUpdate['error_message'] = ($error_message !== '') ? $error_message : 'Preview worker failed';
+			$this->updateVideoPreviewRecord($gal_id, array(
+				'preview_status' => 'error',
+				'updated_on' => time(),
+				'error_message' => $jobUpdate['error_message']
+			));
+		}
+
+		$this->updateVideoPreviewJobStatus($job_id, $jobUpdate);
+		$this->flushVideoPreviewCallbacks($job_id);
+
+		$job = $this->getVideoPreviewJobById($job_id);
+		return array(
+			'status' => ($job && $job['job_status'] === 'done') ? 'ok' : 'fail',
+			'job_id' => $job_id,
+			'gal_id' => $gal_id,
+			'preview_path' => ($resultPreview && !empty($resultPreview['relative_path'])) ? $resultPreview['relative_path'] : '',
+			'error' => ($job && !empty($job['error_message'])) ? $job['error_message'] : ''
+		);
+	}
+
+	public function processVideoPreviewJob($job_id, $worker_ip = '')
+	{
+		$job_id = (int)$job_id;
+		$worker_ip = trim((string)$worker_ip);
+
+		if ($job_id <= 0) {
+			return array('error' => 'Wrong job_id');
+		}
+
+		$job = $this->getVideoPreviewJobById($job_id);
+		if (!$job) {
+			return array('error' => 'Preview job not found');
+		}
+
+		$gal_id = (int)$job['gal_id'];
+		if (!$this->canRequestVideoPreview($gal_id, false)) {
+			return array('error' => 'Галерея для preview job должна быть Movies и иметь статус OK');
+		}
+
+		if ($job['job_status'] === 'done') {
+			$previewPath = $this->getVideoPreviewRelativePath($gal_id, true, $job['preview_format']);
+			return array(
+				'success' => true,
+				'job_id' => $job_id,
+				'gal_id' => $gal_id,
+				'preview_path' => $previewPath ? $previewPath : ''
+			);
+		}
+
+		$this->updateVideoPreviewJobStatus($job_id, array(
+			'job_status' => 'processing',
+			'started_on' => time(),
+			'worker_ip' => $worker_ip,
+			'error_message' => ''
+		));
+
+		$result = $this->generateVideoPreview($gal_id);
+		if (!$result) {
+			$previewInfo = $this->getVideoPreviewInfo($gal_id);
+			$error = ($previewInfo && !empty($previewInfo['error_message'])) ? $previewInfo['error_message'] : 'Preview generation failed';
+			$this->updateVideoPreviewJobStatus($job_id, array(
+				'job_status' => 'error',
+				'finished_on' => time(),
+				'worker_ip' => $worker_ip,
+				'error_message' => substr($error, 0, 255)
+			));
+			return array('error' => $error);
+		}
+
+		return array(
+			'success' => true,
+			'job_id' => $job_id,
+			'gal_id' => $gal_id,
+			'preview_path' => !empty($result['relative_path']) ? $result['relative_path'] : ''
+		);
+	}
+
+	public function processQueuedVideoPreviewJobs($limit = 3, $worker_ip = 'cron')
+	{
+		$limit = (int)$limit;
+		$worker_ip = trim((string)$worker_ip);
+		if ($limit <= 0) {
+			$limit = 3;
+		}
+		if ($limit > 20) {
+			$limit = 20;
+		}
+		if ($worker_ip === '') {
+			$worker_ip = 'cron';
+		}
+
+		$processed = 0;
+		$success = 0;
+		$errors = 0;
+
+		for ($i = 0; $i < $limit; $i++) {
+			try {
+				$stmt = $this->_db->prepare("SELECT id FROM video_preview_jobs WHERE job_status = 'new' ORDER BY requested_on ASC, id ASC LIMIT 1");
+				$stmt->execute();
+				$jobId = (int)$stmt->fetchColumn();
+			} catch (PDOException $e) {
+				$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true, true);
+				break;
+			}
+
+			if ($jobId <= 0) {
+				break;
+			}
+
+			$processed++;
+			$result = $this->processVideoPreviewJob($jobId, $worker_ip);
+			if ($result && !isset($result['error'])) {
+				$success++;
+				$log = new Logger(__METHOD__ . ": processed preview job#" . $jobId . ", GID#" . $result['gal_id'] . ", path '" . $result['preview_path'] . "'", false, true);
+			} else {
+				$errors++;
+				$message = ($result && isset($result['error'])) ? $result['error'] : 'unknown preview job error';
+				$log = new Logger(__METHOD__ . ": failed preview job#" . $jobId . ", " . $message, true, true);
+			}
+		}
+
+		return array(
+			'processed' => $processed,
+			'success' => $success,
+			'errors' => $errors
+		);
+	}
+
+	public function deleteVideoPreviewJob($job_id)
+	{
+		$job_id = (int)$job_id;
+		if ($job_id <= 0) {
+			return array('error' => 'Wrong job_id');
+		}
+
+		$job = $this->getVideoPreviewJobById($job_id);
+		if (!$job) {
+			return array('error' => 'Preview job not found');
+		}
+
+		$gal_id = (int)$job['gal_id'];
+
+		try {
+			$this->_db->beginTransaction();
+
+			$stmt = $this->_db->prepare("DELETE FROM video_preview_job_callbacks WHERE job_id = :job_id");
+			$stmt->execute(array(':job_id' => $job_id));
+
+			$stmt = $this->_db->prepare("DELETE FROM video_preview_jobs WHERE id = :job_id");
+			$stmt->execute(array(':job_id' => $job_id));
+
+			$previewInfo = $this->getVideoPreviewInfo($gal_id);
+			$previewFormat = ($previewInfo && !empty($previewInfo['preview_format'])) ? $previewInfo['preview_format'] : 'mp4';
+			$previewExists = $this->getVideoPreviewRelativePath($gal_id, true, $previewFormat);
+			if ($previewInfo && (!$previewExists || $previewInfo['preview_status'] !== 'ok')) {
+				$this->updateVideoPreviewRecord($gal_id, array(
+					'preview_status' => 'new',
+					'updated_on' => time(),
+					'error_message' => ''
+				));
+			}
+
+			$this->_db->commit();
+			return array(
+				'success' => true,
+				'job_id' => $job_id,
+				'gal_id' => $gal_id
+			);
+		} catch (PDOException $e) {
+			if ($this->_db->inTransaction()) {
+				$this->_db->rollBack();
+			}
+			$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+			return array('error' => 'Ошибка удаления preview job');
+		}
+	}
+
 	public function queueVideoPreview($gal_id, array $options = array())
 	{
 		$gal_id = (int)$gal_id;
@@ -4984,11 +5823,17 @@ class Galleries
 		$preview_format = (isset($options['preview_format']) && preg_match('#^(mp4|webm)$#i', $options['preview_format']))
 			? strtolower($options['preview_format'])
 			: 'mp4';
+		$preview_width = isset($options['width']) ? (int)$options['width'] : (defined('VIDEO_PREVIEWS_DEFAULT_WIDTH') ? (int)VIDEO_PREVIEWS_DEFAULT_WIDTH : 320);
+		$preview_height = isset($options['height']) ? (int)$options['height'] : (defined('VIDEO_PREVIEWS_DEFAULT_HEIGHT') ? (int)VIDEO_PREVIEWS_DEFAULT_HEIGHT : 180);
 		$clip_count = isset($options['clip_count']) ? (int)$options['clip_count'] : 10;
 		$clip_length_ms = isset($options['clip_length_ms']) ? (int)$options['clip_length_ms'] : 1000;
 		$start_offset = isset($options['start_offset']) ? (int)$options['start_offset'] : 5;
 		$end_offset = isset($options['end_offset']) ? (int)$options['end_offset'] : 5;
 
+		if ($preview_width < 160) $preview_width = 160;
+		if ($preview_width > 640) $preview_width = 640;
+		if ($preview_height < 90) $preview_height = 90;
+		if ($preview_height > 360) $preview_height = 360;
 		if ($clip_count < 1) $clip_count = 1;
 		if ($clip_count > 20) $clip_count = 20;
 		if ($clip_length_ms < 250) $clip_length_ms = 250;
@@ -5001,14 +5846,14 @@ class Galleries
 					(gal_id, preview_status, preview_format, source_video_size, preview_size, preview_width, preview_height,
 					 preview_duration_ms, preview_bitrate, clip_count, clip_length_ms, start_offset, end_offset, generated_on, updated_on, error_message)
 					VALUES
-					(:gal_id, 'new', :preview_format, :source_video_size, 0, 0, 0, 0, 0, :clip_count, :clip_length_ms, :start_offset, :end_offset, 0, :updated_on, '')
+					(:gal_id, 'new', :preview_format, :source_video_size, 0, :preview_width, :preview_height, 0, 0, :clip_count, :clip_length_ms, :start_offset, :end_offset, 0, :updated_on, '')
 					ON DUPLICATE KEY UPDATE
 						preview_status = 'new',
 						preview_format = VALUES(preview_format),
 						source_video_size = VALUES(source_video_size),
 						preview_size = 0,
-						preview_width = 0,
-						preview_height = 0,
+						preview_width = VALUES(preview_width),
+						preview_height = VALUES(preview_height),
 						preview_duration_ms = 0,
 						preview_bitrate = 0,
 						clip_count = VALUES(clip_count),
@@ -5024,6 +5869,8 @@ class Galleries
 				':gal_id' => $gal_id,
 				':preview_format' => $preview_format,
 				':source_video_size' => $source_video_size,
+				':preview_width' => $preview_width,
+				':preview_height' => $preview_height,
 				':clip_count' => $clip_count,
 				':clip_length_ms' => $clip_length_ms,
 				':start_offset' => $start_offset,
@@ -5111,14 +5958,22 @@ class Galleries
 			return false;
 		}
 
+		$targetWidth = isset($options['width']) ? (int)$options['width'] : (isset($previewInfo['preview_width']) ? (int)$previewInfo['preview_width'] : 0);
+		$targetHeight = isset($options['height']) ? (int)$options['height'] : (isset($previewInfo['preview_height']) ? (int)$previewInfo['preview_height'] : 0);
+		if ($targetWidth <= 0) $targetWidth = defined('VIDEO_PREVIEWS_DEFAULT_WIDTH') ? (int)VIDEO_PREVIEWS_DEFAULT_WIDTH : 320;
+		if ($targetHeight <= 0) $targetHeight = defined('VIDEO_PREVIEWS_DEFAULT_HEIGHT') ? (int)VIDEO_PREVIEWS_DEFAULT_HEIGHT : 180;
+
 		$this->updateVideoPreviewRecord($gal_id, array(
 			'preview_status' => 'processing',
+			'preview_width' => $targetWidth,
+			'preview_height' => $targetHeight,
 			'updated_on' => time(),
 			'error_message' => ''
 		));
 
 		$sourceVideo = $this->getVideoFilePath($gal_id);
-		$outputPath = $this->getVideoPreviewPath($gal_id, false, $previewInfo['preview_format']);
+		$storage = $this->getVideoPreviewStorageInfo($gal_id, $previewInfo['preview_format'], $previewInfo, false, $targetWidth);
+		$outputPath = ($storage && isset($storage['path'])) ? $storage['path'] : false;
 
 		if (!$sourceVideo || !$outputPath) {
 			$this->updateVideoPreviewRecord($gal_id, array(
@@ -5135,8 +5990,8 @@ class Galleries
 			'clip_length_ms' => (int)$previewInfo['clip_length_ms'],
 			'start_offset' => (int)$previewInfo['start_offset'],
 			'end_offset' => (int)$previewInfo['end_offset'],
-			'width' => 320,
-			'height' => 180,
+			'width' => $targetWidth,
+			'height' => $targetHeight,
 			'fps' => 30,
 			'crf' => 26
 		));
@@ -5177,8 +6032,84 @@ class Galleries
 
 		$result = $this->getVideoPreviewInfo($gal_id);
 		if ($result) {
-			$result['public_url'] = HOSTING . $this->getVideoPreviewPublicUrl($gal_id, true, $previewInfo['preview_format']);
+			$result['public_url'] = $this->getVideoPreviewPublicUrl($gal_id, true, $previewInfo['preview_format']);
+			$result['relative_path'] = $this->getVideoPreviewRelativePath($gal_id, true, $previewInfo['preview_format']);
 			$result['full_path'] = $resultFile;
+		}
+
+		$activeJob = $this->getActiveVideoPreviewJob($gal_id);
+		if ($activeJob) {
+			$this->updateVideoPreviewJobStatus($activeJob['id'], array(
+				'job_status' => 'done',
+				'finished_on' => time(),
+				'error_message' => ''
+			));
+			$this->flushVideoPreviewCallbacks($activeJob['id']);
+		}
+
+		return $result;
+	}
+
+	private function getLegacyVideoPreviewPath($gal_id, $format = 'mp4')
+	{
+		$gal_id = (int)$gal_id;
+		$format = strtolower(trim((string)$format));
+		if ($gal_id <= 0 || !preg_match('#^(mp4|webm)$#', $format)) {
+			return false;
+		}
+
+		$gallery_folder = $this->galleryContentFolder($gal_id);
+		if (!$gallery_folder) {
+			return false;
+		}
+
+		return UPLOADFOLDER . $gallery_folder . "/" . $gal_id . ".preview." . $format;
+	}
+
+	public function deleteVideoPreview($gal_id, $deleteRecord = true)
+	{
+		$gal_id = (int)$gal_id;
+		if ($gal_id <= 0) {
+			return false;
+		}
+
+		$result = true;
+		$previewInfo = $this->getVideoPreviewInfo($gal_id);
+		$format = ($previewInfo && !empty($previewInfo['preview_format'])) ? $previewInfo['preview_format'] : 'mp4';
+		$paths = array();
+
+		if ($previewInfo) {
+			$storage = $this->getVideoPreviewStorageInfo($gal_id, $format, $previewInfo, false);
+			if ($storage && !empty($storage['path'])) {
+				$paths[] = $storage['path'];
+			}
+		}
+
+		$legacyPath = $this->getLegacyVideoPreviewPath($gal_id, $format);
+		if ($legacyPath) {
+			$paths[] = $legacyPath;
+		}
+
+		$paths = array_unique(array_filter($paths));
+		foreach ($paths as $path) {
+			if (is_file($path) && !@unlink($path)) {
+				$log = new Logger(__METHOD__ . ": preview file was not deleted '" . $path . "'", true);
+				$result = false;
+			}
+		}
+
+		if ($deleteRecord && $previewInfo) {
+			try {
+				$stmt = $this->_db->prepare("DELETE FROM galleries_video_previews WHERE gal_id = :gal_id");
+				$stmt->execute(array(':gal_id' => $gal_id));
+				$stmt = $this->_db->prepare("DELETE FROM video_preview_job_callbacks WHERE gal_id = :gal_id");
+				$stmt->execute(array(':gal_id' => $gal_id));
+				$stmt = $this->_db->prepare("DELETE FROM video_preview_jobs WHERE gal_id = :gal_id");
+				$stmt->execute(array(':gal_id' => $gal_id));
+			} catch (PDOException $e) {
+				$log = new Logger(__METHOD__ . ": STMT error '" . $e->getMessage() . "'", true);
+				$result = false;
+			}
 		}
 
 		return $result;

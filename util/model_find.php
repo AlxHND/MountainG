@@ -1,15 +1,15 @@
 <?php
 header('Content-type: application/json');
-if (isset ($_POST['name'])) {
+if (isset($_POST['name'])) {
 	$name = $_POST['name'];
 	if (isset($_POST['niche'])) $niche = $_POST['niche'];
-		else $niche = false;
-	require_once ("../config/config.php");
-	require_once (LIB_DIR."/classes/class.logger.php");
-	require_once (LIB_DIR."/classes/class.db_access.php");
-	require_once (LIB_DIR."/classes/class.models.php");
-	require_once (LIB_DIR."/lib/functions.php");
-	require_once (LIB_DIR."/classes/class.users.php");
+	else $niche = false;
+	require_once("../config/config.php");
+	require_once(LIB_DIR . "/classes/Logger.php");
+	require_once(LIB_DIR . "/classes/class.db_access.php");
+	require_once(LIB_DIR . "/classes/class.models.php");
+	require_once(LIB_DIR . "/lib/functions.php");
+	require_once(LIB_DIR . "/classes/class.users.php");
 
 	$models = new CModels($db->_db);
 	$models_find = $models->find_models_by_string($_POST['name'], $niche);
@@ -24,5 +24,4 @@ if (isset ($_POST['name'])) {
 		$string = json_encode($result);
 	} else $string = json_encode(array('error' => "Error!"));
 } else $string = json_encode(array('error' => "Error!"));
-echo $string;	
-?>
+echo $string;
