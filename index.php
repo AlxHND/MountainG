@@ -225,7 +225,6 @@ if ($userAuth->isAuthorized()) {
 	include("classes/class.models.php");
 	include("classes/class.stemming.php");
 	include("classes/class.cache.php");
-	include("classes/class.templates.php");
 	include("classes/class.sites.php");
 	include("classes/class.banners.php");
 	include("classes/class.banner_spot.php");
@@ -436,10 +435,6 @@ if ($userAuth->isAuthorized()) {
 
 						case 'sites':
 							include "lib/sites.php";
-							break;
-
-						case 'templates':
-							include "lib/templates.php";
 							break;
 
 						case 'spots':

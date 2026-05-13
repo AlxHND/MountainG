@@ -1270,7 +1270,8 @@ function setCacheQueryErrorById($id, $error_msg)
 			if ($stmt) {
 				$updated_on = time();
 				$error_msg = substr((string)$error_msg, 0, 128);
-				if ($stmt->bind_param("isii", G_CACHE_QUERY_ERROR_STATUS, $error_msg, $updated_on, $id)) {
+				$cache_status = G_CACHE_QUERY_ERROR_STATUS;
+				if ($stmt->bind_param("isii", $cache_status, $error_msg, $updated_on, $id)) {
 					if ($stmt->execute()) {
 						$result = true;
 					} else {

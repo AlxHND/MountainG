@@ -10,7 +10,14 @@ if (defined('ALWAYS_ALLOWED_IP') && ALWAYS_ALLOWED_IP) {
   }
 }
 
-if (isset($_SERVER['REMOTE_ADDR']) && in_array($_SERVER['REMOTE_ADDR'], $usersPageAllowedIps, true)) {
+$usersPageAllowed = false;
+if (isset($userAuth) && is_object($userAuth) && method_exists($userAuth, 'isAdmin') && $userAuth->isAdmin()) {
+  $usersPageAllowed = true;
+} elseif (isset($_SERVER['REMOTE_ADDR']) && in_array($_SERVER['REMOTE_ADDR'], $usersPageAllowedIps, true)) {
+  $usersPageAllowed = true;
+}
+
+if ($usersPageAllowed) {
 
   if (isset($_GET['uid'], $_GET['q'], $_GET['type']) && $_GET['q'] =='history' && $_GET['type'] == 'descs') {
     $writer_query = new WritersQuery();
@@ -228,6 +235,7 @@ if (isset($_SERVER['REMOTE_ADDR']) && in_array($_SERVER['REMOTE_ADDR'], $usersPa
                 <a href="<?=$_SERVER['SCRIPT_NAME']?>?act=users&amp;id=<?=$id?>">Edit user</a> | 
                 id: <?=$id?>
                 Имя: <?=$user['name']?> |
+                Статус: <strong><?php if ($user['operations'] === 'admin') { ?>Админ<?php } else { ?>Не админ<?php } ?></strong> |
                 IP: <strong><?=$user['ip']?></strong>
                 Последний логин: <?=$user['last_login']?>
                 Добавлен: <strong><?=date("Y-m-d, H:i",$user['added'])?></strong>
@@ -271,6 +279,8 @@ if (isset($_SERVER['REMOTE_ADDR']) && in_array($_SERVER['REMOTE_ADDR'], $usersPa
 		}
 	}	
   } // descs history end
+} else {
+  echo "<div style=\"margin:20px; padding:12px; width:900px; border:1px solid #c66; background:#fff4f4; color:#900; text-align:left;\">Недостаточно прав для просмотра списка пользователей.</div>";
 }
 
 ?>

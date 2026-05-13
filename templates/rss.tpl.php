@@ -9,6 +9,7 @@ function __getThumbFolderById(int $imageId) : string {
 $output_array = [];
 
 $imagesWorker = new Images($db->_db);
+$galleriesWorker = new Galleries($db->_db);
 
 if ($rotator) {
 	header('Content-type: application/json');
@@ -141,6 +142,7 @@ if ($rotator) {
 			
 			if($gallery['type'] == 'Movies') {
 				$videoImages = [];
+				$previewVideo = $galleriesWorker->getVideoPreviewRelativePath($id, true, 'mp4');
 
 				foreach($images as $keyImageId => $imagePath) {
 					$imageFile = "/".$gallery['paysite_id']."/".$id."/".$gallery['md5']."/".$keyImageId.".jpg";	
@@ -156,6 +158,7 @@ if ($rotator) {
 					'url' 		=> $url,
 					'slug' 		=> $slug,
 					'video' 	=> $gallery['paysite_id'] .'/'.$id.'.mp4',
+					'preview_video' => $previewVideo ? $previewVideo : null,
 					'title' 	=> $title,
 					'description' => $description,
 					'image_id'	=> $imageId,

@@ -4,42 +4,41 @@ class CBanners{
 	var $add_error = false;
 
 	function __construct($db_connect) {		
-		$this->_db = $db_connect;
+		$this->_db = $this->normalizeConnection($db_connect);
 
+	}
+
+	protected function normalizeConnection($db_connect) {
+		if ($db_connect instanceof PDO) {
+			return $db_connect;
+		}
+
+		if (is_object($db_connect) && isset($db_connect->_db) && $db_connect->_db instanceof PDO) {
+			return $db_connect->_db;
+		}
+
+		return null;
 	}
 
 	protected function fetchAll($sql) {
-		if ($this->_db instanceof PDO) {
-			$stmt = $this->_db->query($sql);
-			return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : array();
+		if (!$this->_db) {
+			return array();
 		}
 
-		$rs = $this->_db->Execute($sql);
-		return $rs ? $rs->GetRows() : array();
+		$stmt = $this->_db->query($sql);
+		return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : array();
 	}
 
 	protected function executeSql($sql) {
-		if ($this->_db instanceof PDO) {
-			return $this->_db->exec($sql) !== false;
-		}
-
-		return $this->_db->Execute($sql) !== false;
+		return $this->_db ? ($this->_db->exec($sql) !== false) : false;
 	}
 
 	protected function quote($value) {
-		if ($this->_db instanceof PDO) {
-			return $this->_db->quote((string)$value);
-		}
-
-		return $this->_db->qstr($value);
+		return $this->_db ? $this->_db->quote((string)$value) : "''";
 	}
 
 	protected function lastInsertId() {
-		if ($this->_db instanceof PDO) {
-			return (int)$this->_db->lastInsertId();
-		}
-
-		return (int)$this->_db->Insert_ID();
+		return $this->_db ? (int)$this->_db->lastInsertId() : 0;
 	}
 
 	protected function bannerFileName($id, $width, $height, $type) {
@@ -568,7 +567,7 @@ class CCurentBanner extends CBanners{
 
 	function __construct($db_connect)
 	{
-		$this->_db = $db_connect;
+		$this->_db = $this->normalizeConnection($db_connect);
 		parent::__construct($db_connect);
 	}
 
@@ -643,7 +642,7 @@ class CCurentBanner extends CBanners{
 		$result = false;
 		if ($debug) {
 			echo "Debug<br>";
-			$this->_db->debug = true;
+			echo "PDO debug mode is not available in legacy banner loader<br>";
 		}
 		if ($this->_db) {
 			if ($debug) echo "DB connect ok<br>";

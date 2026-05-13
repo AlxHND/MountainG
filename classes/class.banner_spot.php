@@ -5,23 +5,46 @@ class CBannerSpot{
 
 	function __construct($db_connect)
 	{		
-		$this->_db = $db_connect;
+		$this->_db = $this->normalizeConnection($db_connect);
 		//parent::__construct();
 	}
 
-	private function fetchAll($sql) {
-		if ($this->_db instanceof PDO) {
-			$stmt = $this->_db->query($sql);
-			return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : array();
+	private function normalizeConnection($db_connect) {
+		if ($db_connect instanceof PDO) {
+			return $db_connect;
 		}
 
-		$rs = $this->_db->Execute($sql);
-		return $rs ? $rs->GetRows() : array();
+		if (is_object($db_connect) && isset($db_connect->_db) && $db_connect->_db instanceof PDO) {
+			return $db_connect->_db;
+		}
+
+		return null;
+	}
+
+	private function fetchAll($sql) {
+		if (!$this->_db) {
+			return array();
+		}
+
+		$stmt = $this->_db->query($sql);
+		return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : array();
+	}
+
+	private function executeSql($sql) {
+		return $this->_db ? ($this->_db->exec($sql) !== false) : false;
+	}
+
+	private function quote($value) {
+		return $this->_db ? $this->_db->quote((string)$value) : "''";
+	}
+
+	private function lastInsertId() {
+		return $this->_db ? (int)$this->_db->lastInsertId() : 0;
 	}
 
 	function truncate()
 	{
-		$this->_db->Execute('TRUNCATE TABLE `banners_spots`');	
+		$this->executeSql('TRUNCATE TABLE `banners_spots`');	
 	} 
 
 	function getSpots($id)
@@ -83,12 +106,12 @@ class CBannerSpot{
 		if (!preg_match('/^(top|bottom|lsidebar|rsidebar|middle)$/', $onpage_position))
 			$onpage_position = 'top';
 
-		$sql = 'INSERT INTO `banners_spots` ( `name`, `site_id`, `paysite_id`, `category_1`, `category_2`, `max_width`, `max_height`, `min_width`, `min_height`, `onsite_position`, `onpage_position`, `row`, `column`, `number`, `use_if_empty` ) ';
-		$sql .= ' VALUES (';
-		$sql .= $this->_db->qstr($name).',';
-		$sql .= intval($site_id).',';
-		$sql .= intval($paysite_id).',';
-		$sql .= intval($category_1).',';
+			$sql = 'INSERT INTO `banners_spots` ( `name`, `site_id`, `paysite_id`, `category_1`, `category_2`, `max_width`, `max_height`, `min_width`, `min_height`, `onsite_position`, `onpage_position`, `row`, `column`, `number`, `use_if_empty` ) ';
+			$sql .= ' VALUES (';
+			$sql .= $this->quote($name).',';
+			$sql .= intval($site_id).',';
+			$sql .= intval($paysite_id).',';
+			$sql .= intval($category_1).',';
 		$sql .= intval($category_2).',';
 		$sql .= intval($max_width).',';
 		$sql .= intval($max_height).',';
@@ -99,40 +122,32 @@ class CBannerSpot{
 		$sql .= intval($row).',';
 		$sql .= intval($column).',';
 		$sql .= intval($number).',';
-		$sql .= "'');";
-	
+			$sql .= "'');";
 
-		var_dump($sql);
-		if ( $this->_db->Execute($sql) === false) {
-		         print 'error inserting: '.$this->_db->ErrorMsg().'<BR>';
-		}
-		$insert_id = $this->_db->Insert_ID();
-		$this->updateHtmlField($use_if_empty, $insert_id);
-		$this->selectBanners($insert_id);
-		return  $insert_id;
+			if (!$this->executeSql($sql)) {
+				return false;
+			}
+
+			$insert_id = $this->lastInsertId();
+			$this->updateHtmlField($use_if_empty, $insert_id);
+			$this->selectBanners($insert_id);
+			return  $insert_id;
 	}
 
 	function updateHtmlField($html_banner, $spot_id) {
 		$result = false;
-
-		$db = DB::get();
-
-
-
-		if($db) {
-			if ($html_banner && (int)$spot_id > 0) {
-				$html_banner = htmlspecialchars($html_banner);
-				$sql = "UPDATE banners_spots SET  use_if_empty = ? WHERE id = ?;";
-				$stmt = $db->prepare($sql);
-				if($stmt) {
-					$stmt->bind_param("si", $html_banner, $spot_id);
-					if($stmt->execute()) {
-						$result = true;
-					} else { $log = new Logger(__METHOD__.": DB execute failed: ".$stmt->error,true); }
-				} else { $log = new Logger(__METHOD__.": STMT failed: ".$db->error,true); }
+		if ($this->_db && $html_banner && (int)$spot_id > 0) {
+			$html_banner = htmlspecialchars($html_banner, ENT_QUOTES);
+			$sql = "UPDATE banners_spots SET use_if_empty = :html_banner WHERE id = :spot_id";
+			$stmt = $this->_db->prepare($sql);
+			if ($stmt) {
+				$result = $stmt->execute(array(
+					':html_banner' => $html_banner,
+					':spot_id' => (int)$spot_id,
+				));
+			} else {
+				$log = new Logger(__METHOD__.": PDO prepare failed", true);
 			}
-		} else {
-
 		}
 
 		return $result;
@@ -161,11 +176,11 @@ class CBannerSpot{
 		$update = false;
 		$sql = 'UPDATE `banners_spots` SET ';
 
-		if ( $name !== false)
-		{
-			$sql .=  '`name`='.$this->_db->qstr(clean_string($name));
-			$update = true;
-		}
+			if ( $name !== false)
+			{
+				$sql .=  '`name`='.$this->quote(clean_string($name));
+				$update = true;
+			}
 		if ( $site_id !== false)
 		{
 			if ($update) $sql .=  ',';
@@ -208,12 +223,12 @@ class CBannerSpot{
 			$sql .=  '`min_width`=\''.intval($min_width).'\'';
 			$update = true;
 		}
-		if ( $update !== false)
-		{
-			if ($min_height) $sql .=  ',';
-			$sql .=  '`min_height`=\''.intval($min_height).'\'';
-			$update = true;
-		}
+			if ( $min_height !== false)
+			{
+				if ($update) $sql .=  ',';
+				$sql .=  '`min_height`=\''.intval($min_height).'\'';
+				$update = true;
+			}
 		if ( $row !== false)
 		{
 			if ($update) $sql .=  ',';
@@ -253,13 +268,13 @@ class CBannerSpot{
 			$this->updateHtmlField($use_if_empty, $spots_id);
 		}		
 
-		$sql .= ' WHERE `banners_spots`.`id` = '.$spots_id;
+			$sql .= ' WHERE `banners_spots`.`id` = '.$spots_id;
 
-		if ($update) {
-			if ($this->_db->Execute($sql)) {
-				$this->unselectBanners($spots_id);
-				$this->selectBanners($spots_id, $site_id);
-				return true;
+			if ($update) {
+				if ($this->executeSql($sql)) {
+					$this->unselectBanners($spots_id);
+					$this->selectBanners($spots_id, $site_id);
+					return true;
 			}
 		}
 	}
@@ -284,10 +299,10 @@ class CBannerSpot{
 		$result = false;
 		$spotId = intval($spotId);
 
-		if ($this->_db && $spotId) {
-			$sql = "delete from `banners_spots_content` where `id_spot` = ".$spotId;
-			if ($rs = $this->_db->Execute($sql)) $result = true;
-		}
+			if ($this->_db && $spotId) {
+				$sql = "delete from `banners_spots_content` where `id_spot` = ".$spotId;
+				if ($this->executeSql($sql)) $result = true;
+			}
 		return $result;
 	}
 
@@ -372,11 +387,10 @@ class CBannerSpot{
 //Выберается список удовлетворяющих баннеров.
 //var_dump($sql);
 		// $this->_db->debug = true;
-		$rs = $this->_db->Execute($sql);
-		$banner_res = $rs->GetRows();
-		// var_dump($banner_res);
-		if( empty($banner_res) )
-			return false;
+			$banner_res = $this->fetchAll($sql);
+			// var_dump($banner_res);
+			if( empty($banner_res) )
+				return false;
 		$banners_ls = array();
 		foreach ($banner_res as $value)
 		{
@@ -385,20 +399,19 @@ class CBannerSpot{
 //var_dump($banners_ls);
 
 //Получается список из таблицы соответствий баннер-спор
-		$rs = $this->_db->Execute('select id_banner from `banners_spots_content` WHERE id_spot='.$spots_id);
-		$spots_content_res = $rs->GetRows();
-//var_dump($spots_content_res);
-		if( !empty($spots_content_res) )
-		{
-			foreach ($spots_content_res as $spots_content)
+			$spots_content_res = $this->fetchAll('select id_banner from `banners_spots_content` WHERE id_spot='.$spots_id);
+	//var_dump($spots_content_res);
+			if( !empty($spots_content_res) )
 			{
-				if( in_array( $spots_content['id_banner'], $banners_ls ) )
+				foreach ($spots_content_res as $spots_content)
 				{
-					$bid = array_search( $spots_content['id_banner'], $banners_ls );
-					unset( $banners_ls[$bid] );
+					$bannerId = (int)$spots_content['id_banner'];
+					if (array_key_exists($bannerId, $banners_ls))
+					{
+						unset($banners_ls[$bannerId]);
+					}
 				}
 			}
-		}
 
 //если баннера нет в таблице соответствий он добавляется
 		if( !empty($banners_ls) )
@@ -408,13 +421,13 @@ class CBannerSpot{
 				$sql = 'INSERT INTO `banners_spots_content` ( `id_spot`, `id_banner`, `paysite_id` ) ';
 				$sql .= ' VALUES (';
 				$sql .= intval($spots_id).',';
-				$sql .= intval($bannerId).',';
-				$sql .= intval($paysiteId);
-				$sql .= ');';
-				$this->_db->Execute($sql);
+					$sql .= intval($bannerId).',';
+					$sql .= intval($paysiteId);
+					$sql .= ');';
+					$this->executeSql($sql);
+				}
 			}
 		}
-	}
 }
 
 

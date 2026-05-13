@@ -360,6 +360,21 @@ class CacheRebuilder
 		}
 	}
 
+	private function fetchDbRows($sql)
+	{
+		if (!$this->_db instanceof PDO) {
+			return array();
+		}
+
+		$stmt = $this->_db->query($sql);
+		return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : array();
+	}
+
+	private function executeDbSql($sql)
+	{
+		return ($this->_db instanceof PDO) ? ($this->_db->exec($sql) !== false) : false;
+	}
+
 
 
 	private function galleryGlobalKey($id)
@@ -3278,17 +3293,13 @@ class CacheRebuilder
 	function fixOKgalleries()
 	{
 		$sql = "SELECT gal_id FROM galleries WHERE gal_status='OK' ORDER BY gal_id ASC";
-		$this->_db->debug = true;
-		$rs = $this->_db->Execute($sql);
-		if ($rs) {
-			$rows = $rs->GetRows();
-			if ($rows) {
-				foreach ($rows as $row) {
-					$gal_id = $row['gal_id'];
-					if (!$this->gallery_cached($gal_id)) {
-						$this->cacheGallery($gal_id);
-						echo "Fixed OK " . $gal_id . "<br>";
-					}
+		$rows = $this->fetchDbRows($sql);
+		if ($rows) {
+			foreach ($rows as $row) {
+				$gal_id = $row['gal_id'];
+				if (!$this->gallery_cached($gal_id)) {
+					$this->cacheGallery($gal_id);
+					echo "Fixed OK " . $gal_id . "<br>";
 				}
 			}
 		}
@@ -3299,29 +3310,26 @@ class CacheRebuilder
 	{
 		$sql = "SELECT gal_id FROM galleries WHERE gal_status='OK' AND 
 					gal_id NOT IN (SELECT gal_id FROM cache_galleries_query) ORDER BY gal_id";
-		$rs = $this->_db->Execute($sql);
-		if ($rs) {
-			$rows = $rs->GetRows();
-			if ($rows) {
-				$first = true;
-				$record = "";
-				$update = false;
-				foreach ($rows as $row) {
-					$gal_id = $row['gal_id'];
-					if (!$this->gallery_cached($gal_id)) {
-						if ($first) {
-							$record = " values ";
-							$first = false;
-						} else $record .= ",";
-						$record .= "('" . $gal_id . "', '" . time() . "')";
-						$update = true;
-					} else echo $gal_id . " set!<br>\n";
-				}
+		$rows = $this->fetchDbRows($sql);
+		if ($rows) {
+			$first = true;
+			$record = "";
+			$update = false;
+			foreach ($rows as $row) {
+				$gal_id = $row['gal_id'];
+				if (!$this->gallery_cached($gal_id)) {
+					if ($first) {
+						$record = " values ";
+						$first = false;
+					} else $record .= ",";
+					$record .= "('" . $gal_id . "', '" . time() . "')";
+					$update = true;
+				} else echo $gal_id . " set!<br>\n";
+			}
 
-				if ($update) {
-					$sql = "insert into cache_galleries_query (gal_id, added_on) " . $record . ";";
-					$rs = $this->_db->Execute($sql);
-				}
+			if ($update) {
+				$sql = "insert into cache_galleries_query (gal_id, added_on) " . $record . ";";
+				$this->executeDbSql($sql);
 			}
 		}
 	}
@@ -3329,16 +3337,13 @@ class CacheRebuilder
 	function initializeGalleriesQuery()
 	{
 		$sql = "select gal_id from cache_galleries_query limit 0, 4000";
-		$rs = $this->_db->Execute($sql);
-		if ($rs) {
-			$rows = $rs->GetRows();
-			if ($rows) {
-				foreach ($rows as $row) {
-					$gal_id = $row['gal_id'];
-					if ($this->cacheGallery($gal_id)) {
-						$sql = "delete from cache_galleries_query where gal_id = '" . $gal_id . "'";
-						if ($rs = $this->_db->Execute($sql)) echo $gal_id . " закэширована<br>";
-					}
+		$rows = $this->fetchDbRows($sql);
+		if ($rows) {
+			foreach ($rows as $row) {
+				$gal_id = $row['gal_id'];
+				if ($this->cacheGallery($gal_id)) {
+					$sql = "delete from cache_galleries_query where gal_id = '" . $gal_id . "'";
+					if ($this->executeDbSql($sql)) echo $gal_id . " закэширована<br>";
 				}
 			}
 		}
@@ -3416,7 +3421,7 @@ class CacheRebuilder
 		//$this->_db->debug = true;
 		$sql = "insert into cache_rebuild_query (query_type, start_value, added_on, item_id, end_value)
 					values ('ok_galleries', '" . $start_value . "', '" . time() . "', '0', '0');";
-		$rs = $this->_db->Execute($sql);
+		$this->executeDbSql($sql);
 	}
 
 	function query_updateGalleryInit($start_value = false)
@@ -3424,7 +3429,7 @@ class CacheRebuilder
 		$start_value = intval($start_value);
 		//$this->_db->debug = true;
 		$sql = "update cache_rebuild_query set start_value = '" . $start_value . "' where query_type = 'ok_galleries';";
-		$rs = $this->_db->Execute($sql);
+		$this->executeDbSql($sql);
 	}
 
 	function query_deleteGalleryInit($start_value = false)
@@ -3432,7 +3437,7 @@ class CacheRebuilder
 		$start_value = intval($start_value);
 		//$this->_db->debug = true;
 		$sql = "delete from cache_rebuild_query where query_type = 'ok_galleries';";
-		$rs = $this->_db->Execute($sql);
+		$this->executeDbSql($sql);
 	}
 
 	function query_checkCacheWork($type = 'ok_galleries')
@@ -3440,11 +3445,8 @@ class CacheRebuilder
 		if (preg_match("#^(ok_galleries|models|tags|sources|site_galleries)$#", $type) && $this->_db) {
 			//$this->_db->debug = true;
 			$sql = "select id,start_value from cache_rebuild_query where query_type = '" . $type . "'";
-			$rs = $this->_db->Execute($sql);
-			if ($rs) {
-				$rows = $rs->GetRows();
-				if ($rows) return $rows[0]['start_value'];
-			}
+			$rows = $this->fetchDbRows($sql);
+			if ($rows) return $rows[0]['start_value'];
 		}
 		return false;
 	}

@@ -80,6 +80,14 @@ class Users {
 			return true;
 		}
 
+		if ($this->verifyApr1Password($password, $storedHash)) {
+			return true;
+		}
+
+		if (!$this->isCryptHashSupported($storedHash)) {
+			return false;
+		}
+
 		$calculatedHash = crypt($password, $storedHash);
 
 		if (!is_string($calculatedHash) || $calculatedHash === '') {
@@ -87,6 +95,109 @@ class Users {
 		}
 
 		return function_exists('hash_equals') ? hash_equals($storedHash, $calculatedHash) : ($storedHash === $calculatedHash);
+	}
+
+	private function isCryptHashSupported($storedHash) {
+		$storedHash = (string)$storedHash;
+
+		if ($storedHash === '') {
+			return false;
+		}
+
+		if (preg_match('/^\$2[axyb]\$\d{2}\$[\.\/0-9A-Za-z]{53}$/', $storedHash)) {
+			return true;
+		}
+
+		if (preg_match('/^\$[156]\$[^\$]+\$.+$/', $storedHash)) {
+			return true;
+		}
+
+		if (preg_match('/^[\.\/0-9A-Za-z]{13}$/', $storedHash)) {
+			return true;
+		}
+
+		if (preg_match('/^_[\.\/0-9A-Za-z]{19}$/', $storedHash)) {
+			return true;
+		}
+
+		return false;
+	}
+
+	private function verifyApr1Password($password, $storedHash) {
+		$password = (string)$password;
+		$storedHash = (string)$storedHash;
+
+		if ($password === '' || !preg_match('/^\$apr1\$([^$]{1,8})\$(.{22})$/', $storedHash, $matches)) {
+			return false;
+		}
+
+		$salt = $matches[1];
+		$calculated = $this->buildApr1Hash($password, $salt);
+
+		if (!is_string($calculated) || $calculated === '') {
+			return false;
+		}
+
+		return function_exists('hash_equals') ? hash_equals($storedHash, $calculated) : ($storedHash === $calculated);
+	}
+
+	private function buildApr1Hash($password, $salt) {
+		$password = (string)$password;
+		$salt = substr((string)$salt, 0, 8);
+
+		if ($password === '' || $salt === '') {
+			return '';
+		}
+
+		$len = strlen($password);
+		$text = $password . '$apr1$' . $salt;
+		$bin = pack('H32', md5($password . $salt . $password));
+
+		for ($i = $len; $i > 0; $i -= 16) {
+			$text .= substr($bin, 0, min(16, $i));
+		}
+
+		for ($i = $len; $i > 0; $i >>= 1) {
+			$text .= ($i & 1) ? chr(0) : $password[0];
+		}
+
+		$bin = pack('H32', md5($text));
+
+		for ($i = 0; $i < 1000; $i++) {
+			$new = ($i & 1) ? $password : $bin;
+			if ($i % 3) {
+				$new .= $salt;
+			}
+			if ($i % 7) {
+				$new .= $password;
+			}
+			$new .= ($i & 1) ? $bin : $password;
+			$bin = pack('H32', md5($new));
+		}
+
+		$tmp = '';
+		for ($i = 0; $i < 5; $i++) {
+			$k = $i + 6;
+			$j = $i + 12;
+			if ($j === 16) {
+				$j = 5;
+			}
+			$tmp = $bin[$i] . $bin[$k] . $bin[$j] . $tmp;
+		}
+
+		$tmp = chr(0) . chr(0) . $bin[11] . $tmp;
+
+		$encoded = '';
+		$alphabet = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+		for ($i = 0; $i < 6; $i++) {
+			$value = (ord($tmp[$i * 3]) << 16) | (ord($tmp[$i * 3 + 1]) << 8) | ord($tmp[$i * 3 + 2]);
+			for ($j = 0; $j < 4; $j++) {
+				$encoded .= $alphabet[$value & 0x3f];
+				$value >>= 6;
+			}
+		}
+
+		return '$apr1$' . $salt . '$' . $encoded;
 	}
 
 	private function storedHashNeedsUpgrade($storedHash) {
