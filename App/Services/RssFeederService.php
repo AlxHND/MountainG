@@ -4,6 +4,38 @@ namespace App\Services;
 
 class RssFeederService
 {
+	private static function encodeContext(array $context = array())
+	{
+		if (empty($context)) {
+			return '';
+		}
+
+		$json = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+		return $json ? ' | context: ' . $json : '';
+	}
+
+	private static function logError($message, array $context = array())
+	{
+		\Logger::error('RssFeederService: ' . $message . self::encodeContext($context));
+	}
+
+	private static function respondError($message, array $context = array())
+	{
+		self::logError($message, $context);
+
+		if (!headers_sent()) {
+			header('Content-Type: text/plain; charset=utf-8');
+		}
+
+		echo "RSS FEEDER ERROR: " . $message;
+		if (!empty($context)) {
+			echo "\n";
+			echo json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+		}
+
+		exit;
+	}
+
 	public static function run($scriptDir)
 	{
 		$scriptDir = rtrim((string)$scriptDir, '/');
@@ -11,62 +43,79 @@ class RssFeederService
 		ini_set('display_errors', 1);
 		error_reporting(E_ALL);
 
-		$pwrd = defined('RSS_FEEDER_PASSWORD') ? (string) RSS_FEEDER_PASSWORD : '';
-		$content_url = defined('RSS_FEEDER_CONTENT_URL') ? (string) RSS_FEEDER_CONTENT_URL : '';
-
-		if (!isset($_GET['pwd']) || $_GET['pwd'] != $pwrd) {
-			echo "Error!";
-			die;
-		}
-
 		require_once($scriptDir . "/config/config.php");
 		require_once($scriptDir . "/classes/Logger.php");
-		require_once($scriptDir . "/classes/class.db_access.php");
-		require_once($scriptDir . "/lib/functions.php");
-		require_once($scriptDir . "/classes/rss.new.php");
-		require_once($scriptDir . "/classes/class.images.php");
+		$pwrd = defined('RSS_FEEDER_PASSWORD') ? (string) RSS_FEEDER_PASSWORD : '';
 
-		if (!isset($db) || !is_object($db) || !isset($db->_db)) {
-			$db = isset($GLOBALS['db']) && is_object($GLOBALS['db']) ? $GLOBALS['db'] : null;
+		if (!isset($_GET['pwd']) || $_GET['pwd'] != $pwrd) {
+			self::respondError('Wrong or missing RSS password', array(
+				'has_pwd' => isset($_GET['pwd']),
+				'request_uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
+				'remote_ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
+			));
 		}
 
-		if (!is_object($db) || !isset($db->_db)) {
-			$db = new \db_access();
-		}
+		try {
+			require_once($scriptDir . "/classes/class.db_access.php");
+			require_once($scriptDir . "/lib/functions.php");
+			require_once($scriptDir . "/classes/rss.new.php");
+			require_once($scriptDir . "/classes/class.images.php");
 
-		$GLOBALS['db'] = $db;
-		$rss = new \SelectTools();
-		$connection_m = \DB::get();
+			if (!isset($db) || !is_object($db) || !isset($db->_db)) {
+				$db = isset($GLOBALS['db']) && is_object($GLOBALS['db']) ? $GLOBALS['db'] : null;
+			}
 
-		$original_images = false;
-		$excludeNiche = 0;
-		$nicheDelim = (isset($_GET['delim']) && strlen($_GET['delim']) === 1) ? $_GET['delim'] : "|";
+			if (!is_object($db) || !isset($db->_db)) {
+				$db = new \db_access();
+			}
 
-		$digibasedLocalIdAsSlug = (isset($_GET['use_as_slug']) && $_GET['use_as_slug'] == 'local_id') ? true : false;
+			if (!is_object($db) || !isset($db->_db) || !$db->_db instanceof \PDO) {
+				self::respondError('DB bootstrap failed', array(
+					'db_type' => is_object($db) ? get_class($db) : gettype($db),
+					'has_pdo' => is_object($db) && isset($db->_db) && ($db->_db instanceof \PDO),
+				));
+			}
 
-		$count = (isset($_GET['count'])) ? (int)$_GET['count'] : 200;
-		$type = (isset($_GET['type']) && in_array($_GET['type'], array('Movies', 'Pics'))) ? $_GET['type'] : 0;
-		$niche = (isset($_GET['niche'])) ? explode($nicheDelim, mysqli_real_escape_string($connection_m, $_GET['niche'])) : 0;
-		$sort = (isset($_GET['sort'])) ? true : false;
-		$offset = (isset($_GET['offset'])) ? intval($_GET['offset']) : 0;
-		$rotator = (isset($_GET['rotator']) && $_GET['rotator'] == 'true') ? true : false;
-		$smart_thumbs = (isset($_GET['smart_thumbs']) && $_GET['smart_thumbs']) ? true : false;
-		$deleted = (isset($_GET['deleted']) && $_GET['deleted']) ? true : false;
+			$GLOBALS['db'] = $db;
+			$rss = new \SelectTools();
+			$connection_m = \DB::get();
 
-		$use_models = (isset($_GET['use_models'])) ? true : false;
+			if (!$connection_m || !($connection_m instanceof \mysqli)) {
+				self::respondError('MySQLi connection failed for RSS feeder', array(
+					'connection_type' => is_object($connection_m) ? get_class($connection_m) : gettype($connection_m),
+				));
+			}
 
-		if (isset($_GET['paysite'])) {
-			require_once($scriptDir . "/classes/class.sources.php");
-			$paysitesWorker = new \Sources($db->_db);
-			$paysiteInfo = $paysitesWorker->getSourceByName($_GET['paysite']);
-			header('Content-type: application/json');
-			echo json_encode((array)$paysiteInfo);
+				$original_images = false;
+				$excludeNiche = 0;
+				$siteUseLocalIds = false;
+				$nicheDelim = (isset($_GET['delim']) && strlen($_GET['delim']) === 1) ? $_GET['delim'] : "|";
 
-			exit;
-		}
+			$digibasedLocalIdAsSlug = (isset($_GET['use_as_slug']) && $_GET['use_as_slug'] == 'local_id') ? true : false;
 
-		if (isset($_GET['model_info'])) {
-			require_once($scriptDir . "/classes/class.models.php");
+			$count = (isset($_GET['count'])) ? (int)$_GET['count'] : 200;
+			$type = (isset($_GET['type']) && in_array($_GET['type'], array('Movies', 'Pics'))) ? $_GET['type'] : 0;
+			$niche = (isset($_GET['niche'])) ? explode($nicheDelim, mysqli_real_escape_string($connection_m, $_GET['niche'])) : 0;
+			$sort = (isset($_GET['sort'])) ? true : false;
+			$offset = (isset($_GET['offset'])) ? intval($_GET['offset']) : 0;
+			$rotator = (isset($_GET['rotator']) && $_GET['rotator'] == 'true') ? true : false;
+			$smart_thumbs = (isset($_GET['smart_thumbs']) && $_GET['smart_thumbs']) ? true : false;
+			$deleted = (isset($_GET['deleted']) && $_GET['deleted']) ? true : false;
+
+			$use_models = (isset($_GET['use_models'])) ? true : false;
+
+			if (isset($_GET['paysite'])) {
+				require_once($scriptDir . "/classes/class.sources.php");
+				$paysitesWorker = new \Sources($db->_db);
+				$paysiteInfo = $paysitesWorker->getSourceByName($_GET['paysite']);
+				header('Content-type: application/json');
+				echo json_encode((array)$paysiteInfo);
+
+				exit;
+			}
+
+			if (isset($_GET['model_info'])) {
+				require_once($scriptDir . "/classes/class.models.php");
 
 			$modelService = new \CModels($db->_db);
 			$modelService->find_models_by_string($_GET['model_info']);
@@ -148,32 +197,8 @@ class RssFeederService
 				}
 			}
 			return;
-		} elseif (isset($_GET['kvs'])) {
-			require_once($scriptDir . "/classes/class.galleries.php");
-
-			$galleries = new \Galleries();
-
-			$niche = isset($_GET['niche']) ? $_GET['niche'] : false;
-			$count = isset($_GET['count']) ? $_GET['count'] : false;
-			$page = isset($_GET['page']) ? $_GET['page'] : false;
-			$order = isset($_GET['order']) ? $_GET['order'] : false;
-			$category = isset($_GET['category']) ? $_GET['category'] : false;
-
-			$xx = $galleries->getOkVideoGalleries($niche, $count, $page, $order, $category);
-			if ($xx) {
-				$galleries_ids = array();
-				foreach ($xx as $gallery) {
-					$galleries_ids[] = $gallery['id'];
-				}
-				$tags_list = $galleries->getGalsListTags($galleries_ids);
-				foreach ($xx as $gallery) {
-					$tags = isset($tags_list[$gallery['id']]) ? $tags_list[$gallery['id']] : "";
-					echo "http://" . $content_url . $gallery['video_url'] . "|" . $gallery['title'] . "|" . $gallery['paysite'] . "|" . $tags . "<br>";
-				}
-			}
-			die;
-		} elseif (isset($_GET['site'])) {
-			$site_id = (int)$_GET['site'];
+			} elseif (isset($_GET['site'])) {
+				$site_id = (int)$_GET['site'];
 
 			require_once($scriptDir . "/classes/class.sites.php");
 
@@ -181,8 +206,10 @@ class RssFeederService
 			$site = $sites_util->getSite($site_id);
 
 			if (!$site || !$site['site_id']) {
-				echo "Error occured! S.";
-				die;
+				self::respondError('Site not found for RSS request', array(
+					'site_id' => $site_id,
+					'request_uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
+				));
 			}
 
 			$siteUseLocalIds = $site['local_id_flag'] == 1 ? true : false;
@@ -279,13 +306,22 @@ class RssFeederService
 					include $scriptDir . "/templates/rss.tpl.php";
 				}
 			}
-		} elseif (isset($_GET['nosite'])) {
-			$rss = new \SelectTools();
-			$galleries = $rss->all();
+			} elseif (isset($_GET['nosite'])) {
+				$rss = new \SelectTools();
+				$galleries = $rss->all();
 
-			if ($galleries) {
-				include $scriptDir . "/templates/rss.tpl.php";
+				if ($galleries) {
+					include $scriptDir . "/templates/rss.tpl.php";
+				}
 			}
+			} catch (\Throwable $e) {
+				self::respondError('Unhandled RSS feeder exception', array(
+					'message' => $e->getMessage(),
+				'file' => $e->getFile(),
+				'line' => $e->getLine(),
+				'request_uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
+				'get' => $_GET,
+			));
 		}
 	}
 }

@@ -151,16 +151,17 @@ if ($rotator) {
 					$legacyThumbs[$keyImageId]['image_url'] = $imageFile;
 				}
 				
-				$output_array[] = [
-					'id' 		=> $id,
-					'local_id'  => $siteUseLocalIds ? $gallery['localId'] : null,
-					'niche'		=> strtolower($gallery['niche']),
-					'url' 		=> $url,
-					'slug' 		=> $slug,
-					'video' 	=> $gallery['paysite_id'] .'/'.$id.'.mp4',
-					'preview_video' => $previewVideo ? $previewVideo : null,
-					'title' 	=> $title,
-					'description' => $description,
+					$output_array[] = [
+						'id' 		=> $id,
+						'local_id'  => $siteUseLocalIds ? $gallery['localId'] : null,
+						'niche'		=> strtolower($gallery['niche']),
+						'url' 		=> $url,
+						'slug' 		=> $slug,
+						'video' 	=> $gallery['paysite_id'] .'/'.$id.'.mp4',
+						'video_preview' => $previewVideo ? $previewVideo : null,
+						'preview_video' => $previewVideo ? $previewVideo : null,
+						'title' 	=> $title,
+						'description' => $description,
 					'image_id'	=> $imageId,
 					'paysite'	=> $gallery['paysite'],
 					'count'		=> $gallery['count'],

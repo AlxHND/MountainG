@@ -39,6 +39,7 @@ define("FTPUSER", "xrhostimage");
 define("FTPPW", "5rUsp2mudRet");
 
 define("RSSPWD", "sqg2fdqkjHgdlo");
+define("RSS_FEEDER_PASSWORD", "gfdE4wqkjHgdo");
 
 define("FOLDERNEEDLE", '/home/web1/mountain-glamour.com/htdocs');
 define("ZIP_FOLDER", "/temp/zip");
