@@ -183,6 +183,116 @@ class SelectTools
 		return $result;
 	}
 
+	public function getDeletedGalleryIds(int $site_id, string $contentType, string $sort = 'desc')
+	{
+		$result = array();
+		$site_id = (int)$site_id;
+		$contentType = strtolower(trim($contentType));
+		$sort = strtolower(trim($sort)) === 'asc' ? 'ASC' : 'DESC';
+
+		if ($site_id <= 0) {
+			$log = new Logger(__METHOD__ . ": No Site_id connect. ", true);
+			return false;
+		}
+
+		if (!in_array($contentType, array('gallery', 'video'), true)) {
+			$log = new Logger(__METHOD__ . ": Unknown content type '" . $contentType . "'", true);
+			return false;
+		}
+
+		$typeWhere = ($contentType === 'video')
+			? "LOWER(gal_type) = 'movies'"
+			: "LOWER(gal_type) <> 'movies' AND gal_type <> ''";
+
+		$sql = "SELECT gal_id, MAX(added_on) AS last_deleted_on
+				FROM galleries_delete_rss
+				WHERE site_id = ?
+				AND " . $typeWhere . "
+				GROUP BY gal_id
+				ORDER BY last_deleted_on " . $sort . ", gal_id " . $sort;
+
+		$stmt = $this->db->prepare($sql);
+		if ($stmt) {
+			if ($stmt->bind_param("i", $site_id)) {
+				if ($stmt->execute()) {
+					$gal_id = 0;
+					$last_deleted_on = 0;
+					$stmt->bind_result($gal_id, $last_deleted_on);
+					while ($stmt->fetch()) {
+						$result[] = (int)$gal_id;
+					}
+				} else {
+					$log = new Logger(__METHOD__ . ": DB execute failed: " . $stmt->error, true);
+					return false;
+				}
+			} else {
+				$log = new Logger(__METHOD__ . ": STMT params not binded: '" . $stmt->error . "'", true);
+				return false;
+			}
+			$stmt->close();
+		} else {
+			$log = new Logger(__METHOD__ . ": STMT failed: " . $this->db->error, true);
+			return false;
+		}
+
+		return $result;
+	}
+
+	public function getDeletedContentRegistry(array $filters = array())
+	{
+		$result = array();
+		$db = $this->db;
+		if (!$db) {
+			return $result;
+		}
+
+		$limit = isset($filters['limit']) ? (int)$filters['limit'] : 100;
+		if ($limit <= 0) {
+			$limit = 100;
+		}
+		if ($limit > 1000) {
+			$limit = 1000;
+		}
+
+		$sort = (isset($filters['sort']) && strtolower((string)$filters['sort']) === 'asc') ? 'ASC' : 'DESC';
+		$where = array();
+
+		if (!empty($filters['site_id'])) {
+			$where[] = "site_id = " . (int)$filters['site_id'];
+		}
+
+		if (!empty($filters['global_id'])) {
+			$where[] = "gal_id = " . (int)$filters['global_id'];
+		}
+
+		if (!empty($filters['content_type'])) {
+			$contentType = strtolower((string)$filters['content_type']);
+			if ($contentType === 'video') {
+				$where[] = "LOWER(gal_type) = 'movies'";
+			} elseif ($contentType === 'gallery') {
+				$where[] = "LOWER(gal_type) <> 'movies' AND gal_type <> ''";
+			}
+		}
+
+		$sql = "SELECT id, gal_id, site_id, gal_local_id, gal_type, gal_url, added_on
+				FROM galleries_delete_rss";
+		if ($where) {
+			$sql .= " WHERE " . implode(" AND ", $where);
+		}
+		$sql .= " ORDER BY added_on " . $sort . ", id " . $sort . " LIMIT " . $limit;
+
+		$query = $db->query($sql);
+		if ($query) {
+			while ($row = $query->fetch_assoc()) {
+				$result[] = $row;
+			}
+		} else {
+			$log = new Logger(__METHOD__ . ": query failed: " . $db->error, true);
+		}
+
+		return $result;
+	}
+
 
 	public function selectSiteGalleries(int $siteId, int $limitation, $niche = 0, $type = 0, $excludeNiche = 0, $sort = false, int $offset = 0, $smart_thumbs = false, $thumbs_select_by = false)
 	{

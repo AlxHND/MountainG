@@ -1160,6 +1160,16 @@ class Galleries
 			$use_site_id = ($site_info['use_galleries_from']) ? $site_info['use_galleries_from'] : $site_id;
 
 			$type = $site_gal_info[$use_site_id]['gal_type'];
+			$typeLower = strtolower((string)$type);
+			if ($typeLower === 'movies') {
+				$type = 'Movies';
+			} elseif ($typeLower === 'pics') {
+				$type = 'Pics';
+			} elseif ($typeLower === 'gif') {
+				$type = 'gif';
+			} elseif ($typeLower === 'embed') {
+				$type = 'embed';
+			}
 			$gal_global_id = $site_gal_info[$use_site_id]['gal_id'];
 			$gal_local_id = $site_gal_info[$use_site_id]['gal_local_id'];
 
@@ -1177,16 +1187,16 @@ class Galleries
 			$output_url = str_replace("#ID#", $t_global_gal_id, $output_url);
 			$output_url = str_replace("#GALNAME#", $url_desc, $output_url);
 
-			$sql_insert[] = "(" . $gal_global_id . ", " . $site_id . ", " . $gal_local_id . ", '" . $output_url . "', " . $added_on . ")";
+			$sql_insert[] = "(" . $gal_global_id . ", " . $site_id . ", " . $gal_local_id . ", '" . $db->real_escape_string($type ? $type : '') . "', '" . $output_url . "', " . $added_on . ")";
 		}
 
 		if (!$sql_insert) {
 			return true;
 		}
 
-		$sql = "INSERT  INTO galleries_delete_rss
-												(`gal_id`, `site_id`, `gal_local_id`, `gal_url`, `added_on`)
-												VALUES " . implode(", ", $sql_insert) . " ON DUPLICATE KEY UPDATE added_on=" . $added_on . ";";
+			$sql = "INSERT  INTO galleries_delete_rss
+													(`gal_id`, `site_id`, `gal_local_id`, `gal_type`, `gal_url`, `added_on`)
+													VALUES " . implode(", ", $sql_insert) . " ON DUPLICATE KEY UPDATE gal_type = VALUES(gal_type), added_on=" . $added_on . ";";
 
 		$stmt = $db->prepare($sql);
 		if (!$stmt || !$stmt->execute()) {

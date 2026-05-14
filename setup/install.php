@@ -1018,19 +1018,21 @@ $sql[] = "CREATE TABLE IF NOT EXISTS `sites_stats_mini` (
 
 
 $sql[] = "CREATE TABLE IF NOT EXISTS `galleries_delete_rss` (
-	`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-	`gal_id` int(10) unsigned NOT NULL,
-	`site_id` int(10) unsigned NOT NULL,
-	`gal_local_id` int(10) unsigned NOT NULL,
-	`gal_url` varchar(240) NOT NULL,
-	`added_on` int(10) unsigned NOT NULL,
-	PRIMARY KEY (`id`),
-	KEY `gal_id` (`gal_id`),
-	KEY `site_id` (`site_id`),
-	KEY `gal_local_id` (`gal_local_id`),
-	KEY `added_on` (`added_on`),
-	UNIQUE ( `gal_id` ,`site_id` )
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
+		`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+		`gal_id` int(10) unsigned NOT NULL,
+		`site_id` int(10) unsigned NOT NULL,
+		`gal_local_id` int(10) unsigned NOT NULL,
+		`gal_type` varchar(16) NOT NULL DEFAULT '',
+		`gal_url` varchar(240) NOT NULL,
+		`added_on` int(10) unsigned NOT NULL,
+		PRIMARY KEY (`id`),
+		KEY `gal_id` (`gal_id`),
+		KEY `site_id` (`site_id`),
+		KEY `gal_local_id` (`gal_local_id`),
+		KEY `gal_type` (`gal_type`),
+		KEY `added_on` (`added_on`),
+		UNIQUE ( `gal_id` ,`site_id` )
+	  ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
 
 $sql[] = "CREATE TABLE IF NOT EXISTS `scr_users_exclude_paysites` (
 	`id` int(10) unsigned NOT NULL AUTO_INCREMENT,

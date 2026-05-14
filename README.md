@@ -99,3 +99,171 @@ and external short path becomes:
 ```text
 2/5/320_512.mp4
 ```
+
+## Deleted Content RSS
+
+The project now supports a separate deleted-content feed by content type.
+
+Supported feed types:
+
+- `gallery`
+- `video`
+
+The feed returns only deleted global IDs (`gal_id`), separated by content type.
+
+Important:
+
+- only unique `global_id` values are returned
+- feed output is grouped by `gal_id`
+- sorting is based on the latest deletion timestamp for each `global_id`
+
+### Data Source
+
+Deleted content is registered in `galleries_delete_rss`.
+
+This registry is filled when a gallery is hard-deleted through `Galleries::deleteGallery()`:
+
+- [class.galleries.php](/home/alexl/Projects/MountainG/classes/class.galleries.php:1035)
+- [class.galleries.php](/home/alexl/Projects/MountainG/classes/class.galleries.php:1057)
+
+Important:
+
+- `deleteGallery()` adds the gallery to the delete RSS registry before marking it as `delete`
+- `trashGallery()` does **not** add anything to the delete RSS registry
+
+### Registry Fields
+
+Relevant fields in `galleries_delete_rss`:
+
+- `gal_id` — global gallery/video ID
+- `site_id` — site for which the delete item is recorded
+- `gal_local_id` — local site ID
+- `gal_type` — content type used to split gallery/video delete feeds
+- `gal_url` — legacy delete URL, kept for old RSS compatibility
+- `added_on` — deletion timestamp
+
+### Feed Endpoints
+
+XML feed:
+
+```text
+rssfeeder.php?pwd=...&site=123&deleted_ids=gallery
+rssfeeder.php?pwd=...&site=123&deleted_ids=video
+```
+
+Plain text feed, one ID per line:
+
+```text
+rssfeeder.php?pwd=...&site=123&deleted_ids=gallery&format=plain
+rssfeeder.php?pwd=...&site=123&deleted_ids=video&format=plain
+```
+
+Concrete examples:
+
+```text
+/rssfeeder.php?pwd=SECRET&site=12&deleted_ids=gallery
+/rssfeeder.php?pwd=SECRET&site=12&deleted_ids=video
+/rssfeeder.php?pwd=SECRET&site=12&deleted_ids=gallery&format=plain
+/rssfeeder.php?pwd=SECRET&site=12&deleted_ids=video&format=plain
+```
+
+Supported format aliases:
+
+- `plain`
+- `txt`
+- `text`
+
+### Sorting
+
+By default, deleted IDs are returned from newest to oldest.
+
+Optional sort parameter:
+
+```text
+&sort=desc
+&sort=asc
+```
+
+Examples:
+
+```text
+rssfeeder.php?pwd=...&site=123&deleted_ids=video&format=plain&sort=desc
+rssfeeder.php?pwd=...&site=123&deleted_ids=gallery&sort=asc
+```
+
+More URL combinations:
+
+```text
+/rssfeeder.php?pwd=SECRET&site=12&deleted_ids=gallery&sort=desc
+/rssfeeder.php?pwd=SECRET&site=12&deleted_ids=gallery&sort=asc
+/rssfeeder.php?pwd=SECRET&site=12&deleted_ids=video&format=plain&sort=desc
+/rssfeeder.php?pwd=SECRET&site=12&deleted_ids=video&format=plain&sort=asc
+```
+
+### Output Format
+
+Plain text output:
+
+```text
+247340
+247339
+247100
+```
+
+XML output:
+
+```xml
+<deleteditem>
+  <id>247340</id>
+</deleteditem>
+```
+
+No additional fields are returned in the new deleted-ID feeds:
+
+- no URL
+- no title
+- no thumbs
+- no tags
+- no models
+
+### Legacy Delete RSS
+
+The old URL-based delete RSS is still available through the legacy `deleted=1` flow.
+
+It reads from the same `galleries_delete_rss` table but returns `gal_url` instead of `gal_id`.
+
+### Schema Update
+
+To support split gallery/video delete feeds, `gal_type` was added to `galleries_delete_rss`.
+
+Use:
+
+```bash
+php setup/update-delete-rss-content-type.php
+```
+
+The update script:
+
+- adds `gal_type`
+- adds an index on `gal_type`
+- backfills `gal_type` from `galleries` when possible
+- prints basic stats for `video / gallery / unknown`
+
+Older orphaned delete records may remain with empty `gal_type` if the original gallery row is already gone.  
+Such rows are intentionally excluded from the typed delete-ID feeds.
+
+### Admin UI
+
+Deleted content can be inspected in the admin panel:
+
+```text
+index.php?act=deleted_content
+```
+
+The page provides:
+
+- filters by `site_id`
+- filters by `global_id`
+- filter by content type (`all / gallery / video`)
+- sorting and limit selection
+- direct test links to XML and plain delete feeds for the selected site

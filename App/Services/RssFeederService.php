@@ -100,7 +100,10 @@ class RssFeederService
 			$offset = (isset($_GET['offset'])) ? intval($_GET['offset']) : 0;
 			$rotator = (isset($_GET['rotator']) && $_GET['rotator'] == 'true') ? true : false;
 			$smart_thumbs = (isset($_GET['smart_thumbs']) && $_GET['smart_thumbs']) ? true : false;
-			$deleted = (isset($_GET['deleted']) && $_GET['deleted']) ? true : false;
+				$deleted = (isset($_GET['deleted']) && $_GET['deleted']) ? true : false;
+				$deletedIdsType = isset($_GET['deleted_ids']) ? strtolower(trim((string)$_GET['deleted_ids'])) : false;
+				$deletedIdsFormat = isset($_GET['format']) ? strtolower(trim((string)$_GET['format'])) : 'xml';
+				$deletedIdsSort = (isset($_GET['sort']) && strtolower(trim((string)$_GET['sort'])) === 'asc') ? 'asc' : 'desc';
 
 			$use_models = (isset($_GET['use_models'])) ? true : false;
 
@@ -265,9 +268,46 @@ class RssFeederService
 				$rss->setSelectOriginalImageMode();
 			}
 
-			if ($deleted) {
-				$galleries = $rss->getDeletedGalleries($site_id);
-				echo "<?xml version='1.0' encoding=\"utf-8\"?>\n";
+				if ($deletedIdsType) {
+					if (!in_array($deletedIdsType, array('gallery', 'video'), true)) {
+						self::respondError('Unknown deleted_ids type', array(
+							'deleted_ids' => $deletedIdsType,
+						));
+					}
+
+					$deletedIds = $rss->getDeletedGalleryIds($site_id, $deletedIdsType, $deletedIdsSort);
+					if ($deletedIdsFormat === 'plain' || $deletedIdsFormat === 'txt' || $deletedIdsFormat === 'text') {
+						header('Content-Type: text/plain; charset=utf-8');
+						if ($deletedIds) {
+							echo implode("\n", array_map('intval', $deletedIds));
+						}
+						return;
+					}
+
+					echo "<?xml version='1.0' encoding=\"utf-8\"?>\n";
+					?>
+			<rss version="2.0">
+				<channel>
+					<title><?= htmlspecialchars($deletedIdsType, ENT_QUOTES, 'UTF-8') ?> delete IDs RSS</title>
+					<description><![CDATA[Deleted content IDs feed]]></description>
+					<generator>Delete IDs feed</generator>
+					<?php
+					if ($deletedIds) {
+						foreach ($deletedIds as $deletedId) {
+					?>
+							<deleteditem>
+								<id><?= (int)$deletedId ?></id>
+							</deleteditem>
+					<?php
+						}
+					}
+					?>
+				</channel>
+			</rss>
+	<?php
+				} elseif ($deleted) {
+					$galleries = $rss->getDeletedGalleries($site_id);
+					echo "<?xml version='1.0' encoding=\"utf-8\"?>\n";
 				?>
 		<rss xmlns:streamrotator="http://streamscripts.com/rss/1.0/" version="2.0">
 			<channel>

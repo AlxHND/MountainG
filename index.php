@@ -497,11 +497,15 @@ if ($userAuth->isAuthorized()) {
 							include "lib/util.php";
 							break;
 
-						case 'logs':
-							include "lib/logs_view.php";
-							break;
+							case 'logs':
+								include "lib/logs_view.php";
+								break;
 
-						case 'update_to_rated':
+							case 'deleted_content':
+								include "lib/deleted_content.php";
+								break;
+
+							case 'update_to_rated':
 							if (isset($_GET['site_id'])) {
 								$site_id = (int)$_GET['site_id'];
 								$default->sites_updateToRatingSystem($site_id);
