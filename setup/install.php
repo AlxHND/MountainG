@@ -358,20 +358,33 @@ $sql = [];
 		  FULLTEXT KEY `name` (`name`)
 		)  ENGINE=InnoDB   DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
 
-		$sql[] = "CREATE TABLE IF NOT EXISTS `model_trash` (
-		  `id` int(11) NOT NULL AUTO_INCREMENT,
-		  `model_id` int(10) unsigned NOT NULL,
-		  `model_data` text COLLATE utf8_bin NOT NULL,
-		  PRIMARY KEY (`id`),
-		  KEY `model_id` (`model_id`)
-		)  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;";
+			$sql[] = "CREATE TABLE IF NOT EXISTS `model_trash` (
+			  `id` int(11) NOT NULL AUTO_INCREMENT,
+			  `model_id` int(10) unsigned NOT NULL,
+			  `model_data` text COLLATE utf8_bin NOT NULL,
+			  PRIMARY KEY (`id`),
+			  KEY `model_id` (`model_id`)
+			)  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;";
 
-		$sql[] = "CREATE TABLE IF NOT EXISTS `paysites` (
-		  `paysite_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-		  `paysite_name` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-		  `paysite_affiliate` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-		  `paysite_link` varchar(255) NOT NULL DEFAULT '',
-		  `legal_link` VARCHAR(256) NOT NULL DEFAULT '',
+			$sql[] = "CREATE TABLE IF NOT EXISTS `affiliate_programs` (
+			  `affiliate_program_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+			  `affiliate_program_name` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+			  `affiliate_program_url` varchar(255) DEFAULT NULL,
+			  `affiliate_program_description` varchar(512) NOT NULL DEFAULT '',
+			  `created_at` datetime NOT NULL,
+			  `updated_at` datetime NOT NULL,
+			  PRIMARY KEY (`affiliate_program_id`),
+			  UNIQUE KEY `affiliate_program_name` (`affiliate_program_name`),
+			  KEY `affiliate_program_url` (`affiliate_program_url`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
+
+			$sql[] = "CREATE TABLE IF NOT EXISTS `paysites` (
+			  `paysite_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+			  `paysite_name` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+			  `paysite_affiliate` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+			  `affiliate_program_id` int(10) unsigned DEFAULT NULL,
+			  `paysite_link` varchar(255) NOT NULL DEFAULT '',
+			  `legal_link` VARCHAR(256) NOT NULL DEFAULT '',
 		  `paysite_folder` varchar(255) NOT NULL DEFAULT '',
 		  `paysite_info` varchar(255) NOT NULL DEFAULT '',
 		  `paysite_review` text NOT NULL,
@@ -398,12 +411,13 @@ $sql = [];
 		  `update_type_video` enum('manual','blog','xml','onsite') DEFAULT NULL,
 		  `set_cropped` tinyint(4) NOT NULL DEFAULT '0',
 		  `use_original_ids` tinyint(3) unsigned NOT NULL DEFAULT '0',
-		  PRIMARY KEY (`paysite_id`),
-		  KEY `last_update` (`last_update`),
-		  KEY `hosted_flag` (`hosted_flag`),
-		  KEY `paysite_category` (`paysite_category`),
-		  KEY `set_cropped` (`set_cropped`)
-		)  ENGINE=InnoDB   DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
+			  PRIMARY KEY (`paysite_id`),
+			  KEY `last_update` (`last_update`),
+			  KEY `hosted_flag` (`hosted_flag`),
+			  KEY `paysite_category` (`paysite_category`),
+			  KEY `affiliate_program_id` (`affiliate_program_id`),
+			  KEY `set_cropped` (`set_cropped`)
+			)  ENGINE=InnoDB   DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
 
 		$sql[] = "CREATE TABLE IF NOT EXISTS `processing_galleries` (
 		  `gal_id` int(11) NOT NULL,

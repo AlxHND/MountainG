@@ -32,8 +32,9 @@
 			<a href="index.php?act=galleries" title="Работа с базами">Базы</a>
 			<ul>
 				<li><a href="index.php?act=galleries">Галеры</a></li>
-				<li><a href="index.php?act=paysites">Платники</a></li>
-				<li><a href="index.php?act=sites">Сайты</a></li>
+					<li><a href="index.php?act=paysites">Платники</a></li>
+					<li><a href="index.php?act=affiliate_programs">Аффилейтки</a></li>
+					<li><a href="index.php?act=sites">Сайты</a></li>
 				<li><a href="index.php?act=models">Модели</a></li>
 				<li>
 					<a href="index.php?act=banners">Баннеры</a>

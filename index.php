@@ -421,9 +421,13 @@ if ($userAuth->isAuthorized()) {
 							include "lib/import-galleries.php";
 							break;
 
-						case 'paysites':
-							include "lib/paysites.php";
-							break;
+							case 'paysites':
+								include "lib/paysites.php";
+								break;
+
+							case 'affiliate_programs':
+								include "lib/affiliate_programs.php";
+								break;
 
 						case 'make':
 							include "lib/make.php";

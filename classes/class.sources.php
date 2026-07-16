@@ -7,6 +7,165 @@ class Sources {
 		$this->_db = $db_connect;
 	}
 
+	private function normalizeAffiliateProgramId($affiliateProgramId)
+	{
+		$affiliateProgramId = (int)$affiliateProgramId;
+		return $affiliateProgramId > 0 ? $affiliateProgramId : null;
+	}
+
+	private function getAffiliateProgramRow($affiliateProgramId)
+	{
+		$affiliateProgramId = $this->normalizeAffiliateProgramId($affiliateProgramId);
+		if (!$affiliateProgramId) {
+			return false;
+		}
+
+		$sql = "SELECT affiliate_program_id, affiliate_program_name, affiliate_program_url, affiliate_program_description
+				FROM affiliate_programs
+				WHERE affiliate_program_id = :affiliate_program_id";
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute(array('affiliate_program_id' => $affiliateProgramId));
+
+		return $stmt->fetch(\PDO::FETCH_ASSOC);
+	}
+
+	private function resolveAffiliateString($affiliate, $affiliateProgramId)
+	{
+		$affiliate = trim((string)$affiliate);
+		$affiliateProgram = $this->getAffiliateProgramRow($affiliateProgramId);
+
+		if ($affiliate === '' && $affiliateProgram) {
+			if (!empty($affiliateProgram['affiliate_program_url'])) {
+				$affiliate = trim((string)$affiliateProgram['affiliate_program_url']);
+			} else {
+				$affiliate = trim((string)$affiliateProgram['affiliate_program_name']);
+			}
+		}
+
+		return $affiliate;
+	}
+
+	public function getAffiliatePrograms()
+	{
+		$result = array();
+		$sql = "SELECT affiliate_programs.affiliate_program_id, affiliate_programs.affiliate_program_name,
+					affiliate_programs.affiliate_program_url, affiliate_programs.affiliate_program_description,
+					affiliate_programs.created_at, affiliate_programs.updated_at,
+					COUNT(paysites.paysite_id) AS paysites_count
+				FROM affiliate_programs
+				LEFT JOIN paysites
+					ON paysites.affiliate_program_id = affiliate_programs.affiliate_program_id
+				GROUP BY affiliate_programs.affiliate_program_id, affiliate_programs.affiliate_program_name,
+					affiliate_programs.affiliate_program_url, affiliate_programs.affiliate_program_description,
+					affiliate_programs.created_at, affiliate_programs.updated_at
+				ORDER BY affiliate_program_name ASC";
+		$stmt = $this->_db->prepare($sql);
+		if ($stmt && $stmt->execute()) {
+			$result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+		}
+		return $result;
+	}
+
+	public function getAffiliateProgramById($affiliateProgramId)
+	{
+		$affiliateProgramId = $this->normalizeAffiliateProgramId($affiliateProgramId);
+		if (!$affiliateProgramId) {
+			return false;
+		}
+
+		$sql = "SELECT affiliate_program_id, affiliate_program_name, affiliate_program_url, affiliate_program_description, created_at, updated_at
+				FROM affiliate_programs
+				WHERE affiliate_program_id = :affiliate_program_id";
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute(array('affiliate_program_id' => $affiliateProgramId));
+
+		return $stmt->fetch(\PDO::FETCH_ASSOC);
+	}
+
+	public function getAffiliateProgramPaysitesCount($affiliateProgramId)
+	{
+		$affiliateProgramId = $this->normalizeAffiliateProgramId($affiliateProgramId);
+		if (!$affiliateProgramId) {
+			return 0;
+		}
+
+		$sql = "SELECT COUNT(paysite_id) AS paysites_count
+				FROM paysites
+				WHERE affiliate_program_id = :affiliate_program_id";
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute(array('affiliate_program_id' => $affiliateProgramId));
+
+		return (int)$stmt->fetchColumn();
+	}
+
+	public function saveAffiliateProgram($name, $url = null, $description = '', $affiliateProgramId = null)
+	{
+		$name = trim((string)$name);
+		$url = trim((string)$url);
+		$description = trim((string)$description);
+		$affiliateProgramId = $this->normalizeAffiliateProgramId($affiliateProgramId);
+
+		if ($name === '') {
+			throw new Exception('Affiliate program name is required');
+		}
+
+		if ($url === '') {
+			$url = null;
+		}
+
+		if (strlen($description) > 512) {
+			$description = substr($description, 0, 512);
+		}
+
+		if ($affiliateProgramId) {
+			$sql = "UPDATE affiliate_programs
+					SET affiliate_program_name = :name,
+						affiliate_program_url = :url,
+						affiliate_program_description = :description,
+						updated_at = NOW()
+					WHERE affiliate_program_id = :affiliate_program_id";
+			$params = array(
+				'name' => $name,
+				'url' => $url,
+				'description' => $description,
+				'affiliate_program_id' => $affiliateProgramId,
+			);
+		} else {
+			$sql = "INSERT INTO affiliate_programs
+					(affiliate_program_name, affiliate_program_url, affiliate_program_description, created_at, updated_at)
+					VALUES
+					(:name, :url, :description, NOW(), NOW())";
+			$params = array(
+				'name' => $name,
+				'url' => $url,
+				'description' => $description,
+			);
+		}
+
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute($params);
+
+		return $affiliateProgramId ? $affiliateProgramId : (int)$this->_db->lastInsertId();
+	}
+
+	public function deleteAffiliateProgram($affiliateProgramId)
+	{
+		$affiliateProgramId = $this->normalizeAffiliateProgramId($affiliateProgramId);
+		if (!$affiliateProgramId) {
+			return false;
+		}
+
+		if ($this->getAffiliateProgramPaysitesCount($affiliateProgramId) > 0) {
+			return false;
+		}
+
+		$sql = "DELETE FROM affiliate_programs WHERE affiliate_program_id = :affiliate_program_id";
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute(array('affiliate_program_id' => $affiliateProgramId));
+
+		return $stmt->rowCount() > 0;
+	}
+
 	// возвращает массив заполненый данными о модели с id, объект переинициализируется в соответствии с айди.
 	function getSource($source_id) {
 		$source_id = (int)$source_id;
@@ -75,14 +234,21 @@ class Sources {
 		$legal_links: -1 - with, 1 without
 
 	*/
-	function getAllSources($source_id = false, $niche = false, $legal_links = false, $category = false) {
+	function getAllSources($source_id = false, $niche = false, $legal_links = false, $category = false, $affiliate_program_id = false) {
 		$source_info = array();
 
 		$db = DB::get();
 
-		$sql = "select * from `paysites`";
+			$sql = "select paysites.*,
+						affiliate_programs.affiliate_program_id AS linked_affiliate_program_id,
+						affiliate_programs.affiliate_program_name AS linked_affiliate_program_name,
+						affiliate_programs.affiliate_program_url AS linked_affiliate_program_url,
+						affiliate_programs.affiliate_program_description AS linked_affiliate_program_description
+					from `paysites`
+					left join affiliate_programs
+						on affiliate_programs.affiliate_program_id = paysites.affiliate_program_id";
 		
-		if ((int)$source_id > 0 || $niche || $category || $legal_links != false) {
+			if ((int)$source_id > 0 || $niche || $category || $legal_links != false || (int)$affiliate_program_id > 0) {
 
 			$sql .= " where";
 
@@ -102,21 +268,36 @@ class Sources {
 				$sql .= " paysite_category = $category" ;
 				$sql_and = true;
 			}
-			if ($legal_links) {
-				$sql .= $sql_and ? " and " : " ";
-				$sql .= ($legal_links > 0) ? " legal_link != ''" : " legal_link = ''" ;
-				$sql_and = true;
+				if ($legal_links) {
+					$sql .= $sql_and ? " and " : " ";
+					$sql .= ($legal_links > 0) ? " legal_link != ''" : " legal_link = ''" ;
+					$sql_and = true;
+				}
+				if ((int)$affiliate_program_id > 0) {
+					$sql .= $sql_and ? " and " : " ";
+					$sql .= " paysites.affiliate_program_id = " . (int)$affiliate_program_id;
+					$sql_and = true;
+				}
+				
 			}
-			
-		}
 		$q_result = $db->query($sql);
 
 		if ($q_result) {
 			while ($row = $q_result->fetch_assoc()) {
 				$source_info[$row['paysite_id']]['id'] 					= $row['paysite_id'];
 		        $source_info[$row['paysite_id']]['name'] 				= $row['paysite_name'];
-		        $source_info[$row['paysite_id']]['program'] 			= $row['paysite_affiliate'];
-		        $source_info[$row['paysite_id']]['affiliateProgram'] 	= $row['paysite_affiliate']; //дубль, чтобыне преписывать		        
+					$programRuntimeValue = $row['paysite_affiliate'];
+					if (!$programRuntimeValue && $row['linked_affiliate_program_url']) {
+						$programRuntimeValue = $row['linked_affiliate_program_url'];
+					} elseif (!$programRuntimeValue && $row['linked_affiliate_program_name']) {
+						$programRuntimeValue = $row['linked_affiliate_program_name'];
+					}
+					$source_info[$row['paysite_id']]['program'] 			= $programRuntimeValue;
+		        $source_info[$row['paysite_id']]['affiliateProgram'] 	= $row['linked_affiliate_program_name'] ? $row['linked_affiliate_program_name'] : $row['paysite_affiliate']; //дубль, чтобыне преписывать		        
+					$source_info[$row['paysite_id']]['affiliateProgramId'] = $row['affiliate_program_id'] ? (int)$row['affiliate_program_id'] : 0;
+					$source_info[$row['paysite_id']]['affiliateProgramUrl'] = $row['linked_affiliate_program_url'];
+					$source_info[$row['paysite_id']]['affiliateProgramDescription'] = $row['linked_affiliate_program_description'];
+					$source_info[$row['paysite_id']]['affiliateProgramLegacy'] = $row['paysite_affiliate'];
 				$source_info[$row['paysite_id']]['link'] 				= $row['paysite_link'];
 				$source_info[$row['paysite_id']]['legal_link'] 			= $row['legal_link'];
 		        $source_info[$row['paysite_id']]['folder'] 				= $row['paysite_folder'];
@@ -241,10 +422,10 @@ class Sources {
 		return $db->insert_id;
 	}	
 
-	function addSource($name, $affiliate, $niche, $category, $link, $crop, $hosted, $info = "", $paysiteReview = "", $trialLength = 0, $trialPrice = 0, $fullPrice = 0, $clickHereText = "", $paysiteRating = 0, $paysite_update_page = "", $update_type = "",$paysite_update_page_video = "",$update_type_video = "",$single_update_page = "", $set_cropped = 0, $bitrate = false, $use_original_ids = 0, $legal_link = '') {
-		return $this->addPaysite($name, $affiliate, $niche, $category, $link, $crop, $hosted, $info, $paysiteReview, $trialLength, $trialPrice, $fullPrice, $clickHereText, $paysiteRating, $paysite_update_page, $update_type, $paysite_update_page_video, $update_type_video, $single_update_page, $set_cropped, $bitrate, $use_original_ids, $legal_link= '');
+		function addSource($name, $affiliate, $niche, $category, $link, $crop, $hosted, $info = "", $paysiteReview = "", $trialLength = 0, $trialPrice = 0, $fullPrice = 0, $clickHereText = "", $paysiteRating = 0, $paysite_update_page = "", $update_type = "",$paysite_update_page_video = "",$update_type_video = "",$single_update_page = "", $set_cropped = 0, $bitrate = false, $use_original_ids = 0, $legal_link = '', $affiliate_program_id = null) {
+		return $this->addPaysite($name, $affiliate, $niche, $category, $link, $crop, $hosted, $info, $paysiteReview, $trialLength, $trialPrice, $fullPrice, $clickHereText, $paysiteRating, $paysite_update_page, $update_type, $paysite_update_page_video, $update_type_video, $single_update_page, $set_cropped, $bitrate, $use_original_ids, $legal_link, $affiliate_program_id);
 	}
-	function addPaysite($name, $affiliate, $niche, $category, $link, $crop, $hosted, $info = "", $paysiteReview = "", $trialLength = 0, $trialPrice = 0, $fullPrice = 0, $clickHereText = "", $paysiteRating = 0, $paysite_update_page = "", $update_type = "",$paysite_update_page_video = "",$update_type_video = "",$single_update_page = "", $set_cropped = 0, $bitrate = false, $use_original_ids = false, $legal_link= '') {
+	function addPaysite($name, $affiliate, $niche, $category, $link, $crop, $hosted, $info = "", $paysiteReview = "", $trialLength = 0, $trialPrice = 0, $fullPrice = 0, $clickHereText = "", $paysiteRating = 0, $paysite_update_page = "", $update_type = "",$paysite_update_page_video = "",$update_type_video = "",$single_update_page = "", $set_cropped = 0, $bitrate = false, $use_original_ids = false, $legal_link= '', $affiliate_program_id = null) {
 
 		$db = DB::get();
 
@@ -261,8 +442,10 @@ class Sources {
 		$folder = preg_replace ("/\s+/", "", $folder);
 		$folder = str_replace (" ", "", $folder);
 	
-		$name 			= $db->escape_string($name);
-		$affiliate 		= $db->escape_string($affiliate);
+			$affiliate_program_id = $this->normalizeAffiliateProgramId($affiliate_program_id);
+			$affiliate = $this->resolveAffiliateString($affiliate, $affiliate_program_id);
+			$name 			= $db->escape_string($name);
+			$affiliate 		= $db->escape_string($affiliate);
 		$link 			= $db->escape_string($link);
 		$legal_link		= $db->escape_string($legal_link);
 		$info 			= $db->escape_string($info);
@@ -279,11 +462,11 @@ class Sources {
 		$video_updates_checked_on = 0;
 		$last_update_page_check = 0;
 
-		$sql =  "INSERT INTO paysites
-				( paysite_name,paysite_affiliate,paysite_link,paysite_folder,paysite_info,paysite_niche,paysite_category, crop_profile_id,hosted_flag,paysite_review, paysite_trial_length ,paysite_trial_price,paysite_month_price,paysite_clickhere_text,paysite_rating, paysite_update_page,update_type,paysite_update_page_video,update_type_video,single_update_page, set_cropped, max_bitrate, use_original_ids, update_page_md5, update_page_video_md5, updates_checked_on,video_updates_checked_on, last_update_page_check, legal_link )
-				VALUES
-				('".$name."','".$affiliate."','".$link."','".$folder."','".$info."','".$niche."','".$category."', '".$crop."','".$hosted."','".$paysiteReview."', '".$trialLength."', '".$trialPrice."', '".$fullPrice."', '".$clickHereText."', '".$paysiteRating."', '".$paysite_update_page."',
-					'".$update_type."','".$paysite_update_page_video."','".$update_type_video."','".$single_update_page."','".$set_cropped."','".$bitrate."', '".$use_original_ids."', '".$update_page_md5."', '".$update_page_video_md5."', '".$updates_checked_on."', '".$video_updates_checked_on."', '".$last_update_page_check."', '".$legal_link."')";
+			$sql =  "INSERT INTO paysites
+					( paysite_name,paysite_affiliate,affiliate_program_id,paysite_link,paysite_folder,paysite_info,paysite_niche,paysite_category, crop_profile_id,hosted_flag,paysite_review, paysite_trial_length ,paysite_trial_price,paysite_month_price,paysite_clickhere_text,paysite_rating, paysite_update_page,update_type,paysite_update_page_video,update_type_video,single_update_page, set_cropped, max_bitrate, use_original_ids, update_page_md5, update_page_video_md5, updates_checked_on,video_updates_checked_on, last_update_page_check, legal_link )
+					VALUES
+					('".$name."','".$affiliate."',".($affiliate_program_id ? $affiliate_program_id : "NULL").",'".$link."','".$folder."','".$info."','".$niche."','".$category."', '".$crop."','".$hosted."','".$paysiteReview."', '".$trialLength."', '".$trialPrice."', '".$fullPrice."', '".$clickHereText."', '".$paysiteRating."', '".$paysite_update_page."',
+						'".$update_type."','".$paysite_update_page_video."','".$update_type_video."','".$single_update_page."','".$set_cropped."','".$bitrate."', '".$use_original_ids."', '".$update_page_md5."', '".$update_page_video_md5."', '".$updates_checked_on."', '".$video_updates_checked_on."', '".$last_update_page_check."', '".$legal_link."')";
 		
 		if ($q_result = $db->query($sql)) {
 			$result = $db->insert_id;
@@ -299,8 +482,8 @@ class Sources {
 	}
 
 	public function updateSource($name, $affiliate, $niche, $category, $link, $crop, $hosted, $info, $paysiteReview, $trialLength, $trialPrice,
-								 $fullPrice, $clickHereText, $paysiteRating, $id = false, $paysite_update_page = false, $update_type = "",$paysite_update_page_video = "",
-								 $update_type_video = "",$single_update_page = "", $set_cropped = 0, $bitrate = false, $use_original_ids = 0, $legal_link = '') {
+									 $fullPrice, $clickHereText, $paysiteRating, $id = false, $paysite_update_page = false, $update_type = "",$paysite_update_page_video = "",
+									 $update_type_video = "",$single_update_page = "", $set_cropped = 0, $bitrate = false, $use_original_ids = 0, $legal_link = '', $affiliate_program_id = null) {
 
 		$result = false;
 
@@ -321,8 +504,10 @@ class Sources {
 
 		$db = DB::get();
 	
-		$name 			= $db->escape_string($name);
-		$affiliate 		= $db->escape_string($affiliate);
+			$affiliate_program_id = $this->normalizeAffiliateProgramId($affiliate_program_id);
+			$affiliate = $this->resolveAffiliateString($affiliate, $affiliate_program_id);
+			$name 			= $db->escape_string($name);
+			$affiliate 		= $db->escape_string($affiliate);
 		$link 			= $db->escape_string($link);
 		$legal_link		= $db->escape_string($legal_link);
 		$info 			= $db->escape_string($info);
@@ -349,9 +534,10 @@ class Sources {
 		}
 
 		$sql =  "UPDATE paysites
-					SET paysite_name = '".$name."',
-						paysite_affiliate = '".$affiliate."',
-						paysite_link = '".$link."',
+						SET paysite_name = '".$name."',
+							paysite_affiliate = '".$affiliate."',
+							affiliate_program_id = ".($affiliate_program_id ? $affiliate_program_id : "NULL").",
+							paysite_link = '".$link."',
 						legal_link = '".$legal_link."',
 						paysite_folder = '".$folder."',
 						paysite_info = '".$info."',
@@ -493,15 +679,18 @@ class Sources {
 
 		$db = DB::get();
 
-		$sql = "SELECT paysite_name, paysite_id, paysite_affiliate, paysite_link, paysite_folder, paysite_info, paysite_niche,
-				paysite_category, crop_profile_id, paysite_review, paysite_trial_length, paysite_trial_price, paysite_month_price,
-				paysite_clickhere_text, paysite_rating, last_update, hosted_flag,
-				IM_string, crop_quality, crop_profile_name, cut_top, cut_bottom, cut_left, cut_right,
-				tag_name, max_bitrate
-				FROM paysites
-				LEFT JOIN crop_profiles
-				ON crop_profiles.profile_id = paysites.crop_profile_id
-				LEFT JOIN tags
+		$sql = "SELECT paysite_name, paysite_id, paysite_affiliate, paysites.affiliate_program_id, affiliate_programs.affiliate_program_name, affiliate_programs.affiliate_program_url,
+					paysite_link, paysite_folder, paysite_info, paysite_niche,
+					paysite_category, crop_profile_id, paysite_review, paysite_trial_length, paysite_trial_price, paysite_month_price,
+					paysite_clickhere_text, paysite_rating, last_update, hosted_flag,
+					IM_string, crop_quality, crop_profile_name, cut_top, cut_bottom, cut_left, cut_right,
+					tag_name, max_bitrate
+					FROM paysites
+					LEFT JOIN affiliate_programs
+					ON affiliate_programs.affiliate_program_id = paysites.affiliate_program_id
+					LEFT JOIN crop_profiles
+					ON crop_profiles.profile_id = paysites.crop_profile_id
+					LEFT JOIN tags
 				ON paysites.paysite_category = tags.tag_id
 				ORDER BY paysite_name ASC";
 		
@@ -520,7 +709,9 @@ class Sources {
 				$paysiteId = intval($row['paysite_id']);
 				$paysite['id'] = $paysiteId;
 				$paysite['name'] = $row['paysite_name'];
-				$paysite['affiliateProgram'] = $row['paysite_affiliate'];
+					$paysite['affiliateProgram'] = $row['affiliate_program_name'] ? $row['affiliate_program_name'] : $row['paysite_affiliate'];
+					$paysite['affiliateProgramId'] = $row['affiliate_program_id'] ? (int)$row['affiliate_program_id'] : 0;
+					$paysite['affiliateProgramUrl'] = $row['affiliate_program_url'];
 				$paysite['link'] = $row['paysite_link'];
 				$paysite['folder'] = $row['paysite_folder'];
 				$paysite['info'] = $row['paysite_info'];

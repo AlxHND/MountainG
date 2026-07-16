@@ -1,10 +1,28 @@
 <?php
 $sources = new Sources($db->_db);
+$affiliatePrograms = $sources->getAffiliatePrograms();
+
+if (!function_exists('paysite_affiliate_runtime_value')) {
+	function paysite_affiliate_runtime_value($paysite)
+	{
+		if (!empty($paysite['affiliateProgramUrl'])) {
+			return $paysite['affiliateProgramUrl'];
+		}
+		if (!empty($paysite['affiliateProgram'])) {
+			return $paysite['affiliateProgram'];
+		}
+		if (!empty($paysite['affiliateProgramLegacy'])) {
+			return $paysite['affiliateProgramLegacy'];
+		}
+		return '';
+	}
+}
 
 $set_cropped 		= (isset($_REQUEST['set_cropped']) && $_REQUEST['set_cropped']) ? 1 : 0;
 $use_original_ids 	= (isset($_REQUEST['use_original_ids']) && $_REQUEST['use_original_ids']) ? 1 : 0;
 $single_update_page = (isset($_REQUEST['single_update_page'])) ? $_REQUEST['single_update_page'] : 0;
 $bitrate 			= (isset($_REQUEST['bitrate'])) ? (int)$_REQUEST['bitrate'] : 2200;
+$affiliate_program_id = (isset($_REQUEST['affiliate_program_id']) && (int)$_REQUEST['affiliate_program_id'] > 0) ? (int)$_REQUEST['affiliate_program_id'] : 0;
 
 $paysite_info_txt = "";
 
@@ -47,11 +65,13 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 
 	echo $output_html;
 	
-} else {
-		
-	if ($_GET["act"] == "paysites") {
+	} else {
+			
+		if ($_GET["act"] == "paysites") {
 
-			if ((isset($_GET['query']) && $_GET['query'] == 'add') || (isset($_GET['edit']) && isset($_GET['siteid'])) ) {
+				echo '<div style="padding: 0 0 12px 0; text-align:left; width:1200px; margin:0 auto;"><a href="index.php?act=affiliate_programs">Управление affiliate programs</a></div>';
+
+				if ((isset($_GET['query']) && $_GET['query'] == 'add') || (isset($_GET['edit']) && isset($_GET['siteid'])) ) {
 				
 				if (isset($_REQUEST['crop']) && $_POST['crop'] == 'create') {
 					$cropProfile['name']		= $_POST['profile-name'];
@@ -73,23 +93,23 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 
 						$paysite_id = intval($_GET['siteid']);
 						
-						$sources->updateSource($_POST['paysite'], $_POST['affiliate'], $_POST['niche'], 
-												$_POST['category'], $_POST['link'], $crop_id,
-												$_POST['hosted'], $paysite_info_txt, $_POST['paysiteReview'], $_POST['trialLength'], 
-												$_POST['trialPrice'], $_POST['fullPrice'], $_POST['clickHereText'], 
-												$_POST['paysiteRating'], $paysite_id, $_POST['paysite_update_page'],
-												$_POST['update_type'], $_POST['video_update_page'], $_POST['update_type_video'],
-												$single_update_page, $set_cropped, $bitrate, $use_original_ids, $paysite_legal_link);
+							$sources->updateSource($_POST['paysite'], $_POST['affiliate'], $_POST['niche'], 
+													$_POST['category'], $_POST['link'], $crop_id,
+													$_POST['hosted'], $paysite_info_txt, $_POST['paysiteReview'], $_POST['trialLength'], 
+													$_POST['trialPrice'], $_POST['fullPrice'], $_POST['clickHereText'], 
+													$_POST['paysiteRating'], $paysite_id, $_POST['paysite_update_page'],
+													$_POST['update_type'], $_POST['video_update_page'], $_POST['update_type_video'],
+													$single_update_page, $set_cropped, $bitrate, $use_original_ids, $paysite_legal_link, $affiliate_program_id);
 
 						echo "Платник: <strong>{$paysite_id}</strong> исправлена";
 					} else {
 
-						$paysite_id = $sources->addSource($_REQUEST['paysite'],$_REQUEST['affiliate'],$_REQUEST['niche'],
-														  $_REQUEST['category'],$_REQUEST['link'],$crop_id,$_REQUEST['hosted'],
-														  $paysite_info_txt, $_POST['paysiteReview'], $_POST['trialLength'], $_POST['trialPrice'], 
-														  $_POST['fullPrice'], $_POST['clickHereText'], $_POST['paysiteRating'],
-														  $_POST['paysite_update_page'], $_POST['update_type'],$_POST['video_update_page'],
-														  $_POST['update_type_video'], $single_update_page, $set_cropped, $bitrate, $use_original_ids, $paysite_legal_link);
+							$paysite_id = $sources->addSource($_REQUEST['paysite'],$_REQUEST['affiliate'],$_REQUEST['niche'],
+															  $_REQUEST['category'],$_REQUEST['link'],$crop_id,$_REQUEST['hosted'],
+															  $paysite_info_txt, $_POST['paysiteReview'], $_POST['trialLength'], $_POST['trialPrice'], 
+															  $_POST['fullPrice'], $_POST['clickHereText'], $_POST['paysiteRating'],
+															  $_POST['paysite_update_page'], $_POST['update_type'],$_POST['video_update_page'],
+															  $_POST['update_type_video'], $single_update_page, $set_cropped, $bitrate, $use_original_ids, $paysite_legal_link, $affiliate_program_id);
 
 						if($paysite_id) echo "Платник: <strong>{$paysite_id}</strong> добавлен";
 						else echo "Ошибка! Платник не добавлен!";
@@ -144,7 +164,31 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 							</tr>
 							<tr>
 								<td bgcolor="#e4e4e4">Affiliate: </td>
-								<td bgcolor="#e4e4e4"><input size="42" name="affiliate" id="affiliate" <?php if (isset($siteInfo)) echo "value='".$siteInfo['affiliateProgram']."'";?>></td>
+								<td bgcolor="#e4e4e4">
+									<input size="42" name="affiliate" id="affiliate" <?php if (isset($siteInfo)) echo "value='".htmlspecialchars(isset($siteInfo['affiliateProgramLegacy']) && $siteInfo['affiliateProgramLegacy'] !== '' ? $siteInfo['affiliateProgramLegacy'] : $siteInfo['affiliateProgram'], ENT_QUOTES, 'UTF-8')."'";?>>
+									<div style="font-size:11px; color:#666; padding-top:4px;">Если поле пустое, будет использован URL или Name выбранной affiliate program.</div>
+								</td>
+							</tr>
+							<tr>
+								<td bgcolor="#e4e4e4">Affiliate program: </td>
+								<td bgcolor="#e4e4e4">
+									<select name="affiliate_program_id" id="affiliate_program_id">
+										<option value="0">-- Не выбрано --</option>
+										<?php if ($affiliatePrograms) {
+											foreach ($affiliatePrograms as $affiliateProgram) {
+												$selected = '';
+												if (isset($siteInfo['affiliateProgramId']) && (int)$siteInfo['affiliateProgramId'] === (int)$affiliateProgram['affiliate_program_id']) {
+													$selected = " selected='selected'";
+												}
+										?>
+										<option value="<?=$affiliateProgram['affiliate_program_id']?>"<?=$selected?>>
+											<?=htmlspecialchars($affiliateProgram['affiliate_program_name'], ENT_QUOTES, 'UTF-8')?><?php if (!empty($affiliateProgram['affiliate_program_url'])) { ?> | <?=htmlspecialchars($affiliateProgram['affiliate_program_url'], ENT_QUOTES, 'UTF-8')?><?php } ?>
+										</option>
+										<?php
+											}
+										} ?>
+									</select>
+								</td>
 							</tr>
 							
 							<tr>
@@ -329,21 +373,22 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 
 				$paysites_html_block = "";
 
-				$source_id = false;
-				$niche 			= isset($_REQUEST['niche']) ? $_REQUEST['niche'] : false;
-				$legal_links 	= isset($_REQUEST['legal_links']) ? ($_REQUEST['legal_links'] == 'with' ? 1 : ($_REQUEST['legal_links'] == 'without' ? -1 : false)) : false;
-				$category		= isset($_REQUEST['category']) ? (int)$_REQUEST['category'] : false;
+					$source_id = false;
+					$niche 			= isset($_REQUEST['niche']) ? $_REQUEST['niche'] : false;
+					$legal_links 	= isset($_REQUEST['legal_links']) ? ($_REQUEST['legal_links'] == 'with' ? 1 : ($_REQUEST['legal_links'] == 'without' ? -1 : false)) : false;
+					$category		= isset($_REQUEST['category']) ? (int)$_REQUEST['category'] : false;
+					$affiliate_program_filter = isset($_REQUEST['affiliate_program_filter']) ? (int)$_REQUEST['affiliate_program_filter'] : false;
 
 
 				
 				  
 				  
 
-				if($paysites = $sources->getAllSources($source_id , $niche, $legal_links, $category)) {
+					if($paysites = $sources->getAllSources($source_id , $niche, $legal_links, $category, $affiliate_program_filter)) {
 
-					foreach($paysites as $id => $paysite) {
-						$paysite_array[] = "id: {$paysite['id']}, name:  {$paysite['name']}, program: {$paysite['affiliateProgram']}, niche: {$paysite['niche']}, category: {$default->TagName($paysite['category'])}, crop: {$paysite['cropProfile']}, updated: {$paysite['lastUpdate']}";
-					}
+						foreach($paysites as $id => $paysite) {
+							$paysite_array[] = "id: {$paysite['id']}, name:  {$paysite['name']}, program: " . paysite_affiliate_runtime_value($paysite) . ", niche: {$paysite['niche']}, category: {$default->TagName($paysite['category'])}, crop: {$paysite['cropProfile']}, updated: {$paysite['lastUpdate']}";
+						}
 					$all_paysites = implode(",\n", $paysite_array);
 ?>
 
@@ -351,28 +396,32 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 
 
 
-					foreach($paysites as $id => $paysite) {
-						
-						$block_height = (isset($paysite['video_update_page']) && $paysite['video_update_page']) ? 40 : 20;
+						foreach($paysites as $id => $paysite) {
+							
+							$block_height = (isset($paysite['video_update_page']) && $paysite['video_update_page']) ? 40 : 20;
+							$affiliateProgramLabel = $paysite['affiliateProgram'] ? htmlspecialchars($paysite['affiliateProgram'], ENT_QUOTES, 'UTF-8') : '<span style="color:#999;">legacy</span>';
+							$affiliateProgramUrl = $paysite['affiliateProgramUrl'] ? htmlspecialchars($paysite['affiliateProgramUrl'], ENT_QUOTES, 'UTF-8') : '';
+							$affiliateProgramLegacy = !empty($paysite['affiliateProgramLegacy']) ? htmlspecialchars($paysite['affiliateProgramLegacy'], ENT_QUOTES, 'UTF-8') : '';
+							$affiliateRuntimeValue = paysite_affiliate_runtime_value($paysite);
 
-						$paysites_html_block .= "<div style='float:left; margin: 4px; border: #ccc solid 1px; display: block; width: 96%; height: {$block_height}px;'>
-													<div style='float:left; margin: 4px;'>
-														<a href={$_SERVER['SCRIPT_NAME']}?act=paysites&siteid={$id}&edit>Edit paysite</a> -> 
-														ID: {$paysite ['id']} 
-														name: <strong>{$paysite['name']}</strong> 
-														aff. program: <strong>{$paysite['affiliateProgram']}</strong> 
-														niche: {$paysite['niche']} 
-														category: <strong>{$default->TagName($paysite['category'])}</strong> 
-														crop profile: {$paysite['cropProfile']}
-													</div>
-													<div style='float:right; margin: 4px;'>{$paysite['lastUpdate']}";
+							$paysites_html_block .= "<div style='float:left; margin: 4px; border: #ccc solid 1px; display: block; width: 96%; height: {$block_height}px;'>
+														<div style='float:left; margin: 4px;'>
+															<a href={$_SERVER['SCRIPT_NAME']}?act=paysites&siteid={$id}&edit>Edit paysite</a> -> 
+															ID: {$paysite ['id']} 
+															name: <strong>{$paysite['name']}</strong> 
+															aff. program: <strong>{$affiliateProgramLabel}</strong>" . ($affiliateProgramUrl ? " <span style='color:#666;'>| {$affiliateProgramUrl}</span>" : "") . ($affiliateProgramLegacy && $affiliateProgramLegacy !== $affiliateProgramUrl && $affiliateProgramLegacy !== strip_tags($affiliateProgramLabel) ? " <span style='color:#999;'>(legacy: {$affiliateProgramLegacy})</span>" : "") . "
+															niche: {$paysite['niche']} 
+															category: <strong>{$default->TagName($paysite['category'])}</strong> 
+															crop profile: {$paysite['cropProfile']}
+														</div>
+														<div style='float:right; margin: 4px;'>{$paysite['lastUpdate']}";
 
 								
 
-						if (in_array($paysite['affiliateProgram'], $updateable_paysites)) {
-							if ($paysite['paysite_update_page']) $paysites_html_block .= " | <a href='index.php?act=paysites&amp;check_updates=".$paysite ['id']."'>Проверить апдейты</a>";
-							if ($paysite['video_update_page']) $paysites_html_block .=  " <br><a href='index.php?act=paysites&amp;check_updates=".$paysite ['id']."&amp;content_type=video'>Проверить видео апдейты</a>";
-						}
+							if (in_array($affiliateRuntimeValue, $updateable_paysites, true)) {
+								if ($paysite['paysite_update_page']) $paysites_html_block .= " | <a href='index.php?act=paysites&amp;check_updates=".$paysite ['id']."'>Проверить апдейты</a>";
+								if ($paysite['video_update_page']) $paysites_html_block .=  " <br><a href='index.php?act=paysites&amp;check_updates=".$paysite ['id']."&amp;content_type=video'>Проверить видео апдейты</a>";
+							}
 
 						$paysites_html_block .=  "  </div>
 												  </div>
@@ -395,11 +444,22 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 						<option value="with">Только с 2257 ссылкой</option>
 						<option value="without">Только без 2257 ссылки</option>
 					</select>
-					<select name="category" id="category">
-						<option value="0">Все категории</option>
-						<?php $default->AllTagsToString("<option value=\"#TAG_ID#\">#TAG#</option>"); ?>
-					</select>
-					<input type="submit" value="Показать платники" name="show_paysites" id="show_paysites" />
+						<select name="category" id="category">
+							<option value="0">Все категории</option>
+							<?php $default->AllTagsToString("<option value=\"#TAG_ID#\">#TAG#</option>"); ?>
+						</select>
+						<select name="affiliate_program_filter" id="affiliate_program_filter">
+							<option value="0">Все affiliate programs</option>
+							<?php if ($affiliatePrograms) {
+								foreach ($affiliatePrograms as $affiliateProgram) {
+									$selected = ($affiliate_program_filter && (int)$affiliate_program_filter === (int)$affiliateProgram['affiliate_program_id']) ? " selected='selected'" : '';
+							?>
+							<option value="<?=$affiliateProgram['affiliate_program_id']?>"<?=$selected?>><?=htmlspecialchars($affiliateProgram['affiliate_program_name'], ENT_QUOTES, 'UTF-8')?></option>
+							<?php
+								}
+							} ?>
+						</select>
+						<input type="submit" value="Показать платники" name="show_paysites" id="show_paysites" />
 				</form>
 				<?=$paysites_html_block?>
 				<div class="menu">
