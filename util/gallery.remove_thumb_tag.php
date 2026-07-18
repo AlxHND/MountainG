@@ -17,7 +17,8 @@
 				$string = json_encode(
 				array(
 					'success' => $thumb_id,
-					'tag_id' => $thumb_id,
+					'tag_id' => $tag_id,
+					'thumb_id' => $thumb_id,
 					)
 				);
 				$user->userRemovedThumbTag($user->getId(), $thumb_id, $tag_id);

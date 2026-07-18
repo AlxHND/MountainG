@@ -101,14 +101,12 @@
 
 			</ul>
 		</li>
-		<li>
-			<div style="padding-top:6px; padding-left:16px; float: right;">
-				<input id="go_to_gal_id" size="4" value="">
-				<input type="button" value="Go" onclick="goToGallery();">
-			</div>
-		</li>
-		<li>
-			<a href="index.php?logout=1">Выход</a>
-		</li>
 	</ul>
+	<div class="mainmenu-tools">
+		<div class="mainmenu-go">
+			<input id="go_to_gal_id" size="4" value="">
+			<input type="button" value="Go" onclick="goToGallery();">
+		</div>
+		<a class="mainmenu-logout" href="index.php?logout=1">Выход</a>
+	</div>
 </div>

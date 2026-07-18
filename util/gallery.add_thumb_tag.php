@@ -17,12 +17,12 @@
 				$string = json_encode(
 				array(
 					'success' => $thumb_id,
-					'tag_id' => $thumb_id,
+					'tag_id' => $tag_id,
+					'thumb_id' => $thumb_id,
 					)
 				);
 				$user->userAddedThumbTag($user->getId(), $thumb_id, $tag_id);
 			} else {
-				var_dump($gal_id, $thumb_id, $tag_id);
 				$string = json_encode(
 				array(
 					'error' => 'Тумба: ' .$thumb_id.', Тег: ' .$tag_id.' добавление тега на тумбу не прошло'

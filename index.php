@@ -345,12 +345,6 @@ if ($userAuth->isAuthorized()) {
 </header>
 
 <body>
-	<?php if ($userAuth->isAuthorized()) { ?>
-		<div style="position: fixed; top: 18px; right: 18px; z-index: 10000;">
-			<a href="index.php?logout=1"
-				style="display: inline-block; padding: 8px 14px; background: #b33636; color: #fff; text-decoration: none; border: 1px solid #8d2525; font-family: Arial, sans-serif; font-size: 13px;">Выход</a>
-		</div>
-	<?php } ?>
 	<?php if ($userAuth->isAdmin() && isset($_GET['act']) && $_GET['act'] === 'users') { ?>
 		<div id="auth-test-box"
 			style="position: fixed; top: 76px; right: 18px; width: 310px; z-index: 9999; font-family: Arial, sans-serif;">

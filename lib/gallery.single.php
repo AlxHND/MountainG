@@ -7,10 +7,6 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 
 	$gallery_worker = new Galleries($db->_db);
 
-	if ($userAuth->isAdmin()) {
-		echo "Видео не в CDN {$gallery_worker->countVideosNotInCDN()}";
-	}
-
 	if (isset($_GET['galid'], $_GET['force_switch_status'])) {
 		if ($userAuth->isAdmin()) {
 
@@ -373,25 +369,46 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 		.gallery-single-control-group select,
 		.gallery-single-form select,
 		.gallery-single-form input[type="text"],
-		.gallery-single-form textarea,
 		.gallery-single-form input[type="number"],
 		.gallery-single-panel input[type="button"],
 		.gallery-single-panel input[type="submit"],
 		.gallery-single-panel button {
-			height: 36px;
-			padding: 0 10px;
-			border: 1px solid #bfc7d6;
+			height: 38px;
+			padding: 0 11px;
+			border: 1px solid #d2d9e4;
 			box-sizing: border-box;
 			background: #fff;
 			font-size: 13px;
 			font-family: Arial, Helvetica, sans-serif;
+			color: #273142;
+			line-height: 36px;
+			border-radius: 4px;
+			vertical-align: middle;
 		}
 
 		.gallery-single-form textarea {
 			height: auto;
-			min-height: 72px;
-			padding: 8px 10px;
+			min-height: 58px;
+			padding: 9px 11px;
 			resize: vertical;
+			border: 1px solid #d2d9e4;
+			box-sizing: border-box;
+			background: #fff;
+			font-size: 13px;
+			font-family: Arial, Helvetica, sans-serif;
+			color: #273142;
+			line-height: 1.4;
+			border-radius: 4px;
+			vertical-align: top;
+		}
+
+		.gallery-single-form select:focus,
+		.gallery-single-form input[type="text"]:focus,
+		.gallery-single-form textarea:focus,
+		.gallery-single-form input[type="number"]:focus {
+			outline: none;
+			border-color: #8ea6de;
+			box-shadow: 0 0 0 2px rgba(142, 166, 222, 0.12);
 		}
 
 		.gallery-single-panel input[type="submit"],
@@ -459,7 +476,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 10px;
-			align-items: center;
+			align-items: flex-start;
 			margin: 8px 0;
 		}
 
@@ -472,6 +489,60 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 		.gallery-single-field-input {
 			flex: 1 1 760px;
 			min-width: 280px;
+		}
+
+		.gallery-single-text-input,
+		.gallery-single-add-title-input {
+			width: 100%;
+			border-radius: 4px;
+			padding-right: 52px !important;
+			height: 38px;
+			line-height: 36px;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-field-control {
+			position: relative;
+			width: 100%;
+		}
+
+		.gallery-single-field-input textarea {
+			width: 100%;
+			min-height: 58px;
+			height: 58px;
+			border-radius: 4px;
+			padding-right: 52px !important;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-inline-counter {
+			position: absolute;
+			top: 50%;
+			right: 8px;
+			transform: translateY(-50%);
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 34px;
+			height: 24px;
+			padding: 0 6px;
+			background: rgba(238, 241, 246, 0.96);
+			border: 1px solid #d8deea;
+			border-radius: 12px;
+			color: #5d6678;
+			font-size: 11px;
+			font-weight: bold;
+			line-height: 1;
+			box-sizing: border-box;
+			pointer-events: none;
+		}
+
+		.gallery-single-inline-counter.is-textarea {
+			top: 10px;
+			transform: none;
+			align-items: flex-start;
+			padding-top: 5px;
+			height: 24px;
 		}
 
 		.gallery-single-length-box {
@@ -494,6 +565,19 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			border: 1px solid #d8deea;
 			box-sizing: border-box;
 			font-size: 15px;
+		}
+
+		.gallery-single-summary-row {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px 18px;
+		}
+
+		.gallery-single-summary-secondary {
+			color: #4f596b;
+			font-size: 13px;
 		}
 
 		.gallery-single-posted-list {
@@ -539,22 +623,29 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			line-height: 1.6;
 		}
 
-		.gallery-single-source-row {
-			width: 100%;
+		.gallery-single-meta-split {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: space-between;
+			gap: 10px 16px;
+		}
+
+		.gallery-single-meta-primary {
+			flex: 1 1 600px;
+			min-width: 260px;
+			line-height: 1.6;
+		}
+
+		.gallery-single-source-inline {
+			flex: 0 1 520px;
+			min-width: 280px;
+			padding-left: 16px;
+			border-left: 1px solid #c8d0df;
+			text-align: right;
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
-		}
-
-		.gallery-single-counter-box {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			min-width: 52px;
-			height: 36px;
-			padding: 0 10px;
-			background: #e4e4e4;
-			box-sizing: border-box;
 		}
 
 		.gallery-single-additional-titles {
@@ -579,7 +670,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 10px;
-			align-items: center;
+			align-items: stretch;
 			flex: 1 1 720px;
 			min-width: 260px;
 		}
@@ -597,6 +688,314 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			cursor: pointer;
 			box-sizing: border-box;
 		}
+
+		.gallery-single-tech-note {
+			margin-top: 8px;
+			line-height: 1.45;
+			color: #555;
+		}
+
+		.gallery-single-thumbs-grid {
+			display: grid;
+			gap: 6px;
+			align-items: start;
+			margin: 10px 0;
+		}
+
+		.gallery-single-thumbs-grid-pics {
+			grid-template-columns: repeat(7, minmax(0, 1fr));
+		}
+
+		.gallery-single-thumbs-grid-movies,
+		.gallery-single-thumbs-grid-gif {
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+		}
+
+		.gallery-single-thumbs-grid .thumb,
+		.gallery-single-thumbs-grid .thumb-movies,
+		.gallery-single-thumbs-grid .thumb-gif {
+			float: none !important;
+			width: auto !important;
+			height: auto !important;
+			margin: 0 !important;
+			padding: 4px;
+			display: block;
+			box-sizing: border-box;
+			min-width: 0;
+		}
+
+		.gallery-single-thumbs-grid .thumb img,
+		.gallery-single-thumbs-grid .thumb-movies img,
+		.gallery-single-thumbs-grid .thumb-gif img {
+			display: block;
+			width: 100%;
+			height: auto;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-thumb-actions {
+			width: 100%;
+			margin: 6px 0 4px;
+			text-align: right;
+		}
+
+		.gallery-tech-panel-toggle {
+			position: fixed;
+			top: 86px;
+			right: 18px;
+			z-index: 9999;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			height: 34px;
+			padding: 0 12px;
+			border: 1px solid #7faa7f;
+			background: #b8d8b8;
+			color: #284728;
+			font-size: 13px;
+			font-family: Arial, Helvetica, sans-serif;
+			cursor: pointer;
+			box-sizing: border-box;
+			opacity: 0.68;
+		}
+
+		.gallery-tech-summary {
+			position: fixed;
+			top: 128px;
+			right: 18px;
+			width: 132px;
+			z-index: 9998;
+			opacity: 0.84;
+		}
+
+		.gallery-tech-panel {
+			position: fixed;
+			top: 234px;
+			right: 18px;
+			width: 132px;
+			z-index: 9998;
+			display: none;
+			opacity: 0.84;
+		}
+
+		.gallery-tech-card {
+			margin-bottom: 10px;
+			padding: 10px 12px;
+			border: 1px solid #d8deea;
+			background: rgba(255, 255, 255, 0.96);
+			color: #333;
+			box-sizing: border-box;
+			box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+		}
+
+		.gallery-tech-summary .gallery-tech-card {
+			background: rgba(255, 255, 255, 0.82);
+			backdrop-filter: blur(3px);
+		}
+
+		.gallery-tech-panel-toggle:hover,
+		.gallery-tech-summary:hover,
+		.gallery-tech-panel:hover {
+			opacity: 0.96;
+		}
+
+		.gallery-tech-card-title {
+			font-size: 12px;
+			font-weight: bold;
+			color: #333;
+			margin-bottom: 4px;
+		}
+
+		.gallery-tech-card-value {
+			font-size: 16px;
+			line-height: 1.15;
+			color: #244db3;
+			word-break: break-word;
+		}
+
+		.gallery-tech-card-value-small {
+			font-size: 13px;
+		}
+
+		.gallery-tech-card-compact {
+			padding: 8px 9px;
+		}
+
+		.gallery-tech-card-compact .gallery-tech-card-title {
+			margin-bottom: 3px;
+		}
+
+		.gallery-tech-card-compact .gallery-tech-card-value {
+			font-size: 12px;
+			line-height: 1.3;
+		}
+
+		.gallery-tech-card-compact .gallery-tech-actions {
+			margin-top: 6px;
+		}
+
+		.gallery-tech-card-compact .gallery-tech-actions input[type="submit"],
+		.gallery-tech-card-compact .gallery-tech-actions input[type="button"] {
+			display: block;
+			width: 100%;
+			height: 30px;
+			margin: 0;
+			padding: 0 8px;
+			box-sizing: border-box;
+			font-size: 12px;
+		}
+
+		.gallery-tech-panel .gallery-tech-card {
+			padding: 8px 9px;
+			margin-bottom: 8px;
+		}
+
+		.gallery-tech-panel .gallery-tech-card-title {
+			margin-bottom: 3px;
+		}
+
+		.gallery-tech-panel .gallery-tech-card-value {
+			font-size: 12px;
+			line-height: 1.3;
+		}
+
+		.gallery-tech-section {
+			margin-top: 8px;
+			padding-top: 8px;
+			border-top: 1px solid #d8deea;
+		}
+
+		.gallery-tech-section:first-child {
+			margin-top: 0;
+			padding-top: 0;
+			border-top: 0;
+		}
+
+		.gallery-tech-section-title {
+			font-size: 12px;
+			font-weight: bold;
+			color: #333;
+			margin-bottom: 4px;
+		}
+
+		.gallery-tech-status {
+			margin-top: 4px;
+			font-size: 12px;
+			color: #555;
+			line-height: 1.35;
+			white-space: normal;
+			word-break: break-word;
+		}
+
+		.gallery-tech-actions {
+			margin-top: 6px;
+		}
+
+		.gallery-tech-actions input[type="button"] {
+			display: block;
+			width: 100%;
+			height: 30px;
+			margin: 0 0 5px 0;
+			padding: 0 8px;
+			box-sizing: border-box;
+			font-size: 12px;
+		}
+
+		.gallery-tech-note {
+			font-size: 12px;
+			line-height: 1.35;
+		}
+
+		.gallery-tags-title {
+			margin: 12px 0 8px;
+			font-weight: bold;
+			font-size: 14px;
+			color: #33415c;
+			text-align: left;
+		}
+
+		.gallery-tags-grid {
+			display: grid;
+			grid-template-columns: repeat(11, minmax(0, 1fr));
+			gap: 6px;
+			margin-bottom: 10px;
+			text-align: left;
+		}
+
+		.gallery-tags-grid .catt {
+			float: none;
+			min-width: 0;
+			width: 100%;
+			margin: 0;
+			padding: 8px 10px;
+			box-sizing: border-box;
+			min-height: 38px;
+			display: flex;
+			align-items: center;
+			justify-content: flex-start;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			border: 1px solid #bfc7d6;
+			background: #d7dce5;
+			color: #24324a;
+			font-weight: 400;
+			cursor: pointer;
+		}
+
+		.gallery-tags-grid .catt.gallery-tag-active {
+			background: #666 !important;
+			color: #fff !important;
+			font-weight: 700 !important;
+			border-color: #5a5a5a !important;
+		}
+
+		.gallery-tags-grid .catt.gallery-tag-inactive {
+			background: #d7dce5 !important;
+			color: #24324a !important;
+			font-weight: 400 !important;
+			border-color: #bfc7d6 !important;
+		}
+
+		@media (max-width: 1720px) {
+			.gallery-tags-grid {
+				grid-template-columns: repeat(10, minmax(0, 1fr));
+			}
+		}
+
+		.gallery-single-delete-button {
+			border-color: #a73030 !important;
+			background: #c93b3b !important;
+			color: #fff !important;
+		}
+
+		.gallery-single-delete-button:hover {
+			background: #a73030 !important;
+		}
+
+		.gallery-single-recrop-button {
+			height: 30px !important;
+			padding: 0 7px !important;
+			border-color: #d7a9b8 !important;
+			background: #f2d5de !important;
+			color: #7b4254 !important;
+			font-size: 12px !important;
+			line-height: 28px !important;
+			vertical-align: middle;
+		}
+
+		.gallery-single-recrop-button:hover {
+			background: #e8c2cf !important;
+		}
+
+		.gallery-single-thumb-tag-stack {
+			margin-top: 6px;
+			text-align: left;
+		}
+
+		.gallery-single-thumb-tag-stack .DragBox {
+			margin: 0 4px 4px 0;
+		}
 	</style>
 <?php
 	// только для админа
@@ -604,6 +1003,12 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 	if ($tagFlag == 1) {
 
 ?>
+		<?php if (isset($galToTagCount)) { ?><div class="gallery-single-tag-summary">
+				<div class="gallery-single-summary-row">
+					<div>Осталось проставить теги на <b><?= $galToTagCount ?></b> галерах</div>
+					<div class="gallery-single-summary-secondary">Сегодня обработано: <b><?= $userAuth->todayTaggedGals($user_id) ?></b>, из них новых <b><?= $galleries_OKed_today ?></b></div>
+				</div>
+			</div><?php } ?>
 		<div class="gallery-single-panel">
 		<form name=selector id="block-block-block">
 			<div class="gallery-single-controls">
@@ -654,9 +1059,6 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 		</form>
 		</div>
 		<div style="clear: both;"></div>
-		<?php if (isset($galToTagCount)) { ?><div class="gallery-single-tag-summary">Осталось проставить теги на
-				<b><?= $galToTagCount ?></b> галерах
-			</div><?php } ?>
 		<div style="clear:both"></div>
 	<?php
 
@@ -887,20 +1289,12 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 				<hr>
 				<div class="gallery-single-actions-row">
 					<div class="gallery-single-control-group">
-						<span>Отключить мусор из инфы:</span>
 						<input type="checkbox" <?= $no_info ? 'checked="true"' : false ?> name="no_info" id="no_info" />
 					</div>
-					<?php if ($gallery['type'] == 'Pics') { ?>
-						<div class="gallery-single-control-group">
-							<span><?= $gallery['horiz_size'] ? "Тумбы в ресайзе OK" : "Нет тумб в ресайзе"; ?></span>
-							<input type="submit" value="Сделать ресайз тумб по горизонтали" name="resize_horiz_thumbs"
-								id="<?= $galleryId ?>" onclick="return confirm();" />
-						</div>
-
-					<?php 					} ?>
 				</div>
 				<hr>
-				<div class="gallery-single-info-bar">
+				<div class="gallery-single-info-bar gallery-single-meta-split">
+				<div class="gallery-single-meta-primary">
 				<?php $gallery_user_info = $userAuth->getUsers($user_id);
 				if ($gallery_user && $gallery_user_info && is_array($gallery_user_info) && isset($gallery_user_info[$gallery_user])) {
 				?>
@@ -909,7 +1303,6 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 					|
 				<?php
 				} ?>
-				Платник:
 				<?php if ($userAuth->isAdmin()) { ?>
 					<select name="paysite" id="paysite" onChange="GalleryDefault(this.id);">
 						<?php $sources->listSourcesGalsLight("<option value=\"#PAYSITE_ID#\" #CHECKED#>#PAYSITE#</option>", $gallery['paysite']['id']); ?>
@@ -919,22 +1312,22 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 					<?= $gallery['paysite']['name'] ?>
 				<?php
 				} ?>
-				| Партнерка: <strong><?= $gallery['paysite']['affiliateProgram'] ?></strong>
-				| Ниша: <strong><?= $gallery['niche'] ?></strong> |
+				| <strong><?= $gallery['paysite']['affiliateProgram'] ?></strong>
+				| <strong><?= $gallery['niche'] ?></strong> |
 				<?php
-				if (isset($gallery['hosted'])) { ?> Хостится у себя: <?= $gallery['hosted'] ? 'Да' : 'Нет' ?><?php } /*if isset end*/
+				if (isset($gallery['hosted'])) { ?> <?= $gallery['hosted'] ? 'Selfhost' : 'Outhost' ?><?php } /*if isset end*/
 																													if (!empty($gallery['unique_for_export_site'])) {
 																														echo "| Уникальная для сайта " . $gallery['unique_for_export_site'];
 																													}
 																												} /*if admin end*/ ?>
 					</div>
-					<div class="gallery-single-info-bar gallery-single-source-row">
-						Исходный URL: <strong><a href="<?= $gallery_source_url ?>"><?= $gallery_source_url ?></a></strong></div>
+					<div class="gallery-single-source-inline">
+						Исходный URL: <strong><a href="<?= $gallery_source_url ?>"><?= $gallery_source_url ?></a></strong>
+					</div>
+					</div>
 					<hr>
 
 					<div class="gallery-single-info-bar gallery-single-meta-line">
-					Сегодня обработано: <b><?= $userAuth->todayTaggedGals($user_id) ?></b>, из них новых <b><?= $galleries_OKed_today ?></b>
-					|
 					GID: <strong><a href="index.php?act=galleries&amp;galid=<?= $gallery['id'] ?>"><?= $gallery['id'] ?></a></strong> |
 					<?php
 					$galleryTextStorage = defined('GALLERY_TEXT_STORAGE') ? rtrim(GALLERY_TEXT_STORAGE, '/') : (defined('WRKDIR') ? rtrim(WRKDIR, '/') . "/storage/gallery_texts" : dirname(__DIR__) . "/storage/gallery_texts");
@@ -955,6 +1348,8 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 						$previewGenerated = ($previewInfo && !empty($previewInfo['generated_on'])) ? date("Y-m-d H:i", (int)$previewInfo['generated_on']) : '';
 						$previewSizeMb = ($previewInfo && !empty($previewInfo['preview_size'])) ? round($previewInfo['preview_size'] / 1048576, 2) : 0;
 						$previewDurationSec = ($previewInfo && !empty($previewInfo['preview_duration_ms'])) ? round($previewInfo['preview_duration_ms'] / 1000, 1) : 0;
+						$videoCdnSyncMessage = '';
+						$showVideoCdnSyncButton = false;
 						if ($file_info && is_array($file_info)) {
 					?>
 							Размер видео: <b><?= round($file_info['size'], 2) ?></b>Mb |
@@ -964,24 +1359,19 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 
 							// var_dump($file_info['cdn_synced']);
 
-							if ($file_info['cdn_synced']) echo "| CDN synced";
+							if ($file_info['cdn_synced']) {
+								$videoCdnSyncMessage = 'Синхронизировано';
+								echo "| vCDN: synced";
+							}
 							else {
 
 								if ($sync_status = $gallery_worker->getCdnVideoStatusFromQuery($galleryId)) {
-									echo "<b>Quieried for CND sync. Status '" . $sync_status['file_status'] . "', Added: " . date("Y-m-d", $sync_status['sync_added_on']) . ".</b>";
+									$videoCdnSyncMessage = "В очереди: " . $sync_status['file_status'] . " (" . date("Y-m-d", $sync_status['sync_added_on']) . ")";
+									echo "<b>vCDN: queued (" . $sync_status['file_status'] . ")</b>";
 								} else {
-							?>
-									<div id='cdn-sync-block' onclick="video_to_cdn_query(<?= $galleryId ?>);"
-										style="margin: 2px auto;  padding: 4px;width: 100px; height: 14px; display: block; background-color: red; position: relative; color: white; top: 0px;">
-										Sync to vCDN
-									</div>
-								<?php
+									$videoCdnSyncMessage = 'Не синхронизировано';
+									$showVideoCdnSyncButton = true;
 								}
-								?>
-
-								&nbsp;<br>
-							<?php
-
 							}
 							// $gallery_worker->processSyncCdnQuery($gallery['id']);
 							// var_dump($gallery_worker->generateCdnSyncUrl($gallery['id']));
@@ -1000,7 +1390,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 										if ($gallery['cropped'] == 1) {
 											?>
 							<a target="_blank" href="/xacropper/index.php?act=cropper&amp;galid=<?= $galleryId ?>">Откроплена</a> |
-							<input type="button" value="Галеру в рекроп" id="galleryToRecrop<?= $galleryId ?>"
+							<input class="gallery-single-recrop-button" type="button" value="Галеру в рекроп" id="galleryToRecrop<?= $galleryId ?>"
 								onclick="gallery_to_recrop(<?= $galleryId ?>);">
 						<?php
 										} else {
@@ -1035,26 +1425,24 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 										}
 					?>
 					<div class="gallery-single-field-row">
-						<div class="gallery-single-field-label">Тайтл:</div>
 						<div class="gallery-single-field-input">
-							<input style="width: 100%;" name="title" id="gallery_title"
-								value="<?php if ($local_title) echo htmlspecialchars($local_title);
-										else echo htmlspecialchars($gallery['title']) ?>"
-								onkeyup="chageLength(this.value,this.name)">
-						</div>
-						<div class="gallery-single-counter-box">
-							<div id="titleL"><?php echo strlen($gallery['title']) ?></div>
+							<div class="gallery-single-field-control">
+								<input type="text" class="gallery-single-text-input" name="title" id="gallery_title"
+									value="<?php if ($local_title) echo htmlspecialchars($local_title);
+											else echo htmlspecialchars($gallery['title']) ?>"
+									onkeyup="chageLength(this.value,this.name)">
+								<div class="gallery-single-inline-counter" id="titleL"><?php echo strlen($gallery['title']) ?></div>
+							</div>
 						</div>
 					</div>
 
 					<div class="gallery-single-field-row">
-						<div class="gallery-single-field-label">Деск:</div>
 						<div class="gallery-single-field-input">
-							<input style="width: 100%;" name="description" value="<?php echo htmlspecialchars($gallery['description']) ?>"
-								onkeyup="chageLength(this.value,this.name)">
-						</div>
-						<div class="gallery-single-counter-box">
-							<div id="descriptionL"><?php echo strlen($gallery['description']) ?></div>
+							<div class="gallery-single-field-control">
+								<textarea name="description" rows="2"
+									onkeyup="chageLength(this.value,this.name)"><?php echo htmlspecialchars($gallery['description']) ?></textarea>
+								<div class="gallery-single-inline-counter is-textarea" id="descriptionL"><?php echo strlen($gallery['description']) ?></div>
+							</div>
 						</div>
 					</div>
 					<?php
@@ -1079,11 +1467,11 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 									<option value="nl">Голландский</option>
 									<option value="fr">Французский</option>
 								</select>
-								<input style="flex: 1 1 640px; min-width: 260px;" name="add_title" id="add_title" value="<?php echo htmlspecialchars($gallery['title']) ?>"
-									onkeyup="chageLength(this.value,this.name)">
+								<div class="gallery-single-field-control" style="flex: 1 1 640px; min-width: 260px;">
+									<input type="text" class="gallery-single-add-title-input" name="add_title" id="add_title" value="<?php echo htmlspecialchars($gallery['title']) ?>"
+										onkeyup="chageLength(this.value,this.name)">
+									<div class="gallery-single-inline-counter" id="add_titleL"><?php echo strlen($gallery['title']) ?></div>
 								</div>
-							<div class="gallery-single-counter-box">
-								<div id="add_titleL"><?php echo strlen($gallery['title']) ?></div>
 							</div>
 							<div class="gallery-single-additional-button"
 								onclick="add_new_title(<?= $gallery['id'] ?>); return false;">
@@ -1313,6 +1701,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 
 						<?php
 										$tagged_thumbs = $default->selectTaggedThumbs($galleryId);
+										$thumb_tags_exist = array();
 										if (is_array($gallery['tags'])) {
 											foreach ($gallery['tags']['id'] as $key => $tag_id) {
 												if (!$tagged_thumbs || !array_key_exists($tag_id, $tagged_thumbs)) {
@@ -1322,8 +1711,15 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 										<?= $gallery['tags']['name'][$key] ?></div>
 						<?php
 												} else {
-													$thumb_tags_exist[$tagged_thumbs[$tag_id]]['id'] = $tag_id;
-													$thumb_tags_exist[$tagged_thumbs[$tag_id]]['name'] = $gallery['tags']['name'][$key];
+													$assignedThumbId = (int)$tagged_thumbs[$tag_id];
+													if (!isset($thumb_tags_exist[$assignedThumbId])) {
+														$thumb_tags_exist[$assignedThumbId] = array();
+													}
+
+													$thumb_tags_exist[$assignedThumbId][] = array(
+														'id' => (int)$tag_id,
+														'name' => $gallery['tags']['name'][$key],
+													);
 												}
 											}
 										}
@@ -1332,9 +1728,8 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 					</div>
 
 					<div style="clear:both"></div>
-					<div style="float: right; text-align: right; margin: 5px; display: block; width: 100%; padding: 5px;"><a
+					<div class="gallery-single-thumb-actions"><a
 							href="javascript:select(true);">Select All</a> | <a href="javascript:select(false);">Deselect All</a></div>
-					<div style="clear:both"></div>
 					<div id="images"></div>
 					<?php
 										if (isset($gallery['images'])) {
@@ -1342,19 +1737,25 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 												$picsCount = $gallery['contentCount'];
 												$thumbClass = 'thumb';
 												$thumbUrlPre = HOSTING . "/thumbs/p/150";
+												$thumbGridClass = 'gallery-single-thumbs-grid gallery-single-thumbs-grid-pics';
 											} elseif ($gallery['type'] == 'gif') {
 												$picsCount = $gallery['contentCount'];
 												$thumbClass = 'thumb-gif';
 												$thumbUrlPre = HOSTING;
+												$thumbGridClass = 'gallery-single-thumbs-grid gallery-single-thumbs-grid-gif';
 											} else {
 												$picsCount = (isset($gallery['images']['thumbs']) && is_array($gallery['images']['thumbs'])) ? count($gallery['images']['thumbs']) : 0;
 												$thumbClass = 'thumb-movies';
 												$thumbUrlPre = HOSTING . "/thumbs/m/240";
+												$thumbGridClass = 'gallery-single-thumbs-grid gallery-single-thumbs-grid-movies';
 											}
 
 											$uploadedRss = $default->selectRssThumbs($galleryId);
 
 											if (isset($gallery['images']['thumbs']) && is_array($gallery['images']['thumbs'])) {
+												?>
+												<div class="<?= $thumbGridClass ?>">
+												<?php
 												foreach ($gallery['images']['thumbs'] as $thumbId => $thumbURL) {
 													if (array_key_exists($thumbId, $uploadedRss)) {
 														$textDecoration = 'none';
@@ -1362,13 +1763,15 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 													$folder = folderNameById($thumbId);
 													$thumbURL = $thumbUrlPre . "/" . $folder . "/" . $thumbId . ".jpg";
 													$origImageURL = HOSTING . "/" . $gallery['images']['url'][$thumbId];
-													if (isset($thumb_tags_exist) && isset($thumb_tags_exist[$thumbId]['id'])) {
-														$droppable = "";
-														// var_dump($thumb_tags_exist[$thumbId]['id']);
-														$drag_box_element = "<div class=\"DragBox\" id=\"thumb_assigned_tag_" . $thumb_tags_exist[$thumbId]['id'] . "\"  overClass=\"OverDragBox\" dragClass=\"DragDragBox\" ondblclick=\"removeThumbTag(" . $thumbId . "," . $thumb_tags_exist[$thumbId]['id'] . ")\">" . $thumb_tags_exist[$thumbId]['name'] . "</div>";
-													} else {
-														$droppable = "droppable";
-														$drag_box_element = "";
+													$droppable = "droppable";
+													$drag_box_element = "";
+													if (!empty($thumb_tags_exist[$thumbId])) {
+														$thumbTagHtml = array();
+														foreach ($thumb_tags_exist[$thumbId] as $assignedTag) {
+															$thumbTagHtml[] = "<div class=\"DragBox\" id=\"thumb_assigned_tag_" . (int)$assignedTag['id'] . "\" overClass=\"OverDragBox\" dragClass=\"DragDragBox\" ondblclick=\"removeThumbTag(" . (int)$thumbId . "," . (int)$assignedTag['id'] . ", this)\">" . htmlspecialchars($assignedTag['name']) . "</div>";
+														}
+
+														$drag_box_element = "<div class=\"gallery-single-thumb-tag-stack\">" . implode("", $thumbTagHtml) . "<div style=\"clear:both\"></div></div>";
 													}
 
 					?>
@@ -1401,10 +1804,13 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 
 						<?php
 												}
+												?>
+												</div>
+												<?php
 											}
 						?>
 						<div style="clear:both"></div>
-						<div style="float: right; text-align: right; margin: 5px; display: block; width: 100%; padding: 5px;"><a
+						<div class="gallery-single-thumb-actions"><a
 								href="javascript:select(true);">Select All</a> | <a href="javascript:select(false);">Deselect All</a></div>
 						<div style="clear:both"></div>
 					<?php
@@ -1412,7 +1818,8 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 					?>
 					<div style="clear:both"></div>
 					<div id="tags"></div>
-					Action tags: <br />
+					<div class="gallery-tags-title">Action tags</div>
+					<div class="gallery-tags-grid">
 					<?php
 										$current_letter = false;
 										foreach ($actionTags as $tag) {
@@ -1434,8 +1841,10 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 					<?php
 										}
 					?>
+					</div>
 					<div style="clear:both"></div><br />
-					Categories: <br />
+					<div class="gallery-tags-title">Categories</div>
+					<div class="gallery-tags-grid">
 					<?php
 										$current_letter = false;
 										foreach ($categoryTags as $tag) {
@@ -1454,6 +1863,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 					<?php
 										}
 					?>
+					</div>
 					<div style="clear:both"></div>
 					<br>
 					<?php if ($local_gal_id > 0 && $site_name) { ?>
@@ -1464,7 +1874,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 						</div>
 					<?php } ?>
 					<div style="float: left;">
-						<input onclick="return confirm('удалить галеру?')" style="color: #FF0000; background: none;" type="submit"
+						<input class="gallery-single-delete-button" onclick="return confirm('удалить галеру?')" type="submit"
 							value="Удалить галеру" name="deleteGallery" id="<?= $galleryId ?>" />
 					</div>
 					<?php
@@ -1484,71 +1894,114 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 					</div>
 					<div style="clear:both"></div>
 		</form>
-		<div class="counter">Всего <?= $picsCount ?> тумб</div>
-		<div class="counterChoosen">Выбрано: <div id="counterChoosen"><?= $picsCount ?></div>
+		<div class="gallery-tech-summary">
+			<div class="gallery-tech-card">
+				<div class="gallery-tech-card-title">Всего тумб</div>
+				<div class="gallery-tech-card-value"><?= $picsCount ?></div>
+			</div>
+			<div class="gallery-tech-card">
+				<div class="gallery-tech-card-title">Выбрано</div>
+				<div class="gallery-tech-card-value" id="counterChoosen"><?= $picsCount ?></div>
+			</div>
 		</div>
-		<?php if ($gallery['type']  == 'Movies') {
-											$imageSize = @getimagesize($origImageURL);
+		<?php
+		$showTechPanel = ($gallery['type'] == 'Movies' || $gallery['type'] == 'Pics');
+		if ($showTechPanel) {
+			if ($gallery['type']  == 'Movies') {
+				$imageSize = @getimagesize($origImageURL);
+			}
 		?>
-			<div class="counterChoosen" style="margin-top:70px;">
-				Длительность: <div id="counterChoosen"><?= $gallery['contentCount'] ?> сек</div>
+		<div id="gallery-tech-panel-toggle" class="gallery-tech-panel-toggle" onclick="return toggle_gallery_tech_panel();">Показать техблок</div>
+		<div id="gallery-tech-panel" class="gallery-tech-panel">
+			<?php if ($gallery['type'] == 'Pics') { ?>
+				<div class="gallery-tech-card gallery-tech-card-compact">
+					<div class="gallery-tech-card-title">Ресайз тумб</div>
+					<div class="gallery-tech-card-value gallery-tech-card-value-small"><?= $gallery['horiz_size'] ? "Тумбы в ресайзе OK" : "Нет тумб в ресайзе"; ?></div>
+					<div class="gallery-tech-actions">
+						<input type="submit" value="Ресайз тумб" name="resize_horiz_thumbs"
+							id="<?= $galleryId ?>" onclick="return confirm();">
+					</div>
+				</div>
+			<?php } ?>
+		<?php if ($gallery['type']  == 'Movies') { ?>
+			<div class="gallery-tech-card">
+				<div class="gallery-tech-card-title">Длительность</div>
+				<div class="gallery-tech-card-value gallery-tech-card-value-small"><?= $gallery['contentCount'] ?> сек</div>
 			</div>
 			<?php if (isset($imageSize[0]) && isset($imageSize[1])) { ?>
-				<div class="counterChoosen" style="margin-top:140px;">
-					Кадр: <div id="counterChoosen"><?= $imageSize[0] ?>x<?= $imageSize[1] ?></div>
+				<div class="gallery-tech-card">
+					<div class="gallery-tech-card-title">Кадр</div>
+					<div class="gallery-tech-card-value gallery-tech-card-value-small"><?= $imageSize[0] ?>x<?= $imageSize[1] ?></div>
 				</div>
-				<div class="counterChoosen" style="margin-top:210px; width:240px; padding:8px 10px; line-height:1.35; font-size:13px; opacity:0.95;">
-					<div style="font-size:15px; font-weight:bold; color:#333;">Видео preview</div>
-					<div id="video-preview-status-box" style="margin-top:6px; color:#555;">
-						<span id="video-preview-spinner" style="display:none; width:12px; height:12px; margin-right:6px; border:2px solid #cfcfcf; border-top-color:#4a78c2; border-radius:50%; vertical-align:-2px; animation:video-preview-spin 0.8s linear infinite;"></span>
-						<span id="video-preview-status-text">Статус: <?= htmlspecialchars($previewStatus) ?></span>
+				<div class="gallery-tech-card">
+					<div class="gallery-tech-section">
+						<div class="gallery-tech-section-title">Preview</div>
+						<div id="video-preview-status-box" class="gallery-tech-status">
+							<span id="video-preview-spinner" style="display:none; width:12px; height:12px; margin-right:6px; border:2px solid #cfcfcf; border-top-color:#4a78c2; border-radius:50%; vertical-align:-2px; animation:video-preview-spin 0.8s linear infinite;"></span>
+							<span id="video-preview-status-text"><?= htmlspecialchars($previewStatus) ?></span>
+						</div>
+						<div id="video-preview-meta" style="margin-top:6px; color:#666;">
+							<?php if ($previewUrl) { ?>
+								<div id="video-preview-meta-size">Размер: <?= $previewSizeMb ?> Mb</div>
+								<div id="video-preview-meta-duration">Длительность: <?= $previewDurationSec ?> сек</div>
+							<?php } else { ?>
+								<div id="video-preview-meta-size" style="display:none;"></div>
+								<div id="video-preview-meta-duration" style="display:none;"></div>
+							<?php } ?>
+							<?php if ($previewGenerated) { ?>
+								<div id="video-preview-meta-generated">Обновлено: <?= $previewGenerated ?></div>
+							<?php } else { ?>
+								<div id="video-preview-meta-generated" style="display:none;"></div>
+							<?php } ?>
+						</div>
+						<div id="video-preview-error" class="gallery-tech-status" style="color:#a00;<?php if (!$previewInfo || empty($previewInfo['error_message'])) { ?> display:none;<?php } ?>">
+							<?php if ($previewInfo && !empty($previewInfo['error_message'])) { ?>
+								<?= htmlspecialchars($previewInfo['error_message']) ?>
+							<?php } ?>
+						</div>
+						<div id="video-preview-success" class="gallery-tech-status" style="color:#2b6a2b; display:none;"></div>
+						<div id="video-preview-actions" class="gallery-tech-actions">
+							<input type="button"
+								id="video-preview-generate-btn"
+								value="<?php if ($previewUrl) { ?>Перегенерировать preview<?php } else { ?>Сгенерировать preview<?php } ?>"
+								onclick="return generate_video_preview(<?= $galleryId ?>);">
+							<input type="button"
+								id="video-preview-queue-btn"
+								value="В очередь"
+								onclick="return queue_video_preview(<?= $galleryId ?>);">
+							<input type="button"
+								id="video-preview-open-btn"
+								value="Открыть preview"
+								<?php if (!$previewUrl) { ?>style="display:none; width:100%; box-sizing:border-box;"<?php } else { ?>style="display:block; width:100%; box-sizing:border-box;"<?php } ?>
+								onclick="return open_video_preview_modal(this.getAttribute('data-preview-url'), <?= $galleryId ?>);"
+								data-preview-url="<?= htmlspecialchars($previewUrl, ENT_QUOTES) ?>">
+						</div>
 					</div>
-					<div id="video-preview-meta" style="margin-top:6px; color:#666;">
-						<?php if ($previewUrl) { ?>
-							<div id="video-preview-meta-size">Размер: <?= $previewSizeMb ?> Mb</div>
-							<div id="video-preview-meta-duration">Длительность: <?= $previewDurationSec ?> сек</div>
-						<?php } else { ?>
-							<div id="video-preview-meta-size" style="display:none;"></div>
-							<div id="video-preview-meta-duration" style="display:none;"></div>
+					<div class="gallery-tech-section">
+						<div class="gallery-tech-section-title">vCDN</div>
+						<?php if (!empty($showVideoCdnSyncButton)) { ?>
+							<div class="gallery-tech-actions">
+								<input type="button"
+									id="video-preview-cdn-sync-btn"
+									value="Синк в vCDN"
+									onclick="return video_to_cdn_query(<?= $galleryId ?>);">
+							</div>
 						<?php } ?>
-						<?php if ($previewGenerated) { ?>
-							<div id="video-preview-meta-generated">Обновлено: <?= $previewGenerated ?></div>
-						<?php } else { ?>
-							<div id="video-preview-meta-generated" style="display:none;"></div>
+						<?php if (!empty($videoCdnSyncMessage)) { ?>
+							<div class="gallery-tech-note"><?= htmlspecialchars($videoCdnSyncMessage) ?></div>
 						<?php } ?>
-					</div>
-					<div id="video-preview-error" style="margin-top:6px; color:#a00;<?php if (!$previewInfo || empty($previewInfo['error_message'])) { ?> display:none;<?php } ?>">
-						<?php if ($previewInfo && !empty($previewInfo['error_message'])) { ?>
-							<?= htmlspecialchars($previewInfo['error_message']) ?>
-						<?php } ?>
-					</div>
-					<div id="video-preview-success" style="margin-top:6px; color:#2b6a2b; display:none;"></div>
-					<div id="video-preview-actions" style="margin-top:8px;">
-						<input type="button"
-							id="video-preview-generate-btn"
-							style="display:block; width:100%; margin:0 0 6px 0; box-sizing:border-box;"
-							value="<?php if ($previewUrl) { ?>Перегенерировать preview<?php } else { ?>Сгенерировать preview<?php } ?>"
-							onclick="return generate_video_preview(<?= $galleryId ?>);">
-						<input type="button"
-							id="video-preview-queue-btn"
-							style="display:block; width:100%; margin:0 0 6px 0; box-sizing:border-box;"
-							value="Добавить в очередь"
-							onclick="return queue_video_preview(<?= $galleryId ?>);">
-						<input type="button"
-							id="video-preview-open-btn"
-							value="Открыть preview"
-							<?php if (!$previewUrl) { ?>style="display:none; width:100%; box-sizing:border-box;"<?php } else { ?>style="display:block; width:100%; box-sizing:border-box;"<?php } ?>
-							onclick="return open_video_preview_modal(this.getAttribute('data-preview-url'), <?= $galleryId ?>);"
-							data-preview-url="<?= htmlspecialchars($previewUrl, ENT_QUOTES) ?>">
 					</div>
 				</div>
+			<?php } ?>
+			<?php } ?>
+		</div>
 				<?php if (!isset($_GET['galid']) && $gallery['type'] == 'Movies') { ?>
 					<script type="text/javascript">
 						select(false);
 					</script>
 		<?php }
-											}
 										} ?>
+			</div>
 <?php
 									} else {
 										echo "Очередь тегов пуста";
@@ -1583,6 +2036,440 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 	</div>
 </div>
 <script type="text/javascript" language="Javascript">
+	function normalize_gallery_tag_buttons() {
+		var buttons = document.querySelectorAll('.gallery-tags-grid .catt');
+		for (var i = 0; i < buttons.length; i++) {
+			var button = buttons[i];
+			var clickHandler = button.getAttribute('onclick') || button.getAttribute('onClick') || '';
+			var isActive = clickHandler.indexOf('remove_gallery_tag(') !== -1;
+
+			button.classList.toggle('gallery-tag-active', isActive);
+			button.classList.toggle('gallery-tag-inactive', !isActive);
+
+			if (button.style) {
+				button.style.backgroundColor = '';
+				button.style.color = '';
+				button.style.fontWeight = '';
+			}
+		}
+	}
+
+	function init_gallery_tag_buttons_observer() {
+		normalize_gallery_tag_buttons();
+
+		if (typeof MutationObserver === 'undefined') {
+			return;
+		}
+
+		var observer = new MutationObserver(function(mutations) {
+			for (var i = 0; i < mutations.length; i++) {
+				var target = mutations[i].target;
+				if (target && target.classList && target.classList.contains('catt')) {
+					normalize_gallery_tag_buttons();
+					return;
+				}
+			}
+		});
+
+		var buttons = document.querySelectorAll('.gallery-tags-grid .catt');
+		for (var j = 0; j < buttons.length; j++) {
+			observer.observe(buttons[j], {
+				attributes: true,
+				attributeFilter: ['style', 'onclick', 'onClick']
+			});
+		}
+	}
+
+	function extract_thumb_tag_id(tagNode) {
+		if (!tagNode || !tagNode.id) {
+			return 0;
+		}
+
+		var matches = tagNode.id.match(/(\d+)$/);
+		return matches ? parseInt(matches[1], 10) : 0;
+	}
+
+	function create_thumb_tag_node(tagId, tagName) {
+		var node = document.createElement('div');
+		node.className = 'DragBox';
+		node.innerHTML = tagName || '';
+		return node;
+	}
+
+	function cleanup_available_tag_node(tagId) {
+		var availableNode = document.getElementById('drag_tag_' + tagId);
+		if (availableNode && availableNode.parentNode) {
+			availableNode.parentNode.removeChild(availableNode);
+		}
+	}
+
+	function set_thumb_tag_available_state(tagNode, tagId) {
+		if (!tagNode) {
+			return;
+		}
+
+		tagNode.id = 'drag_tag_' + tagId;
+		tagNode.className = 'DragBox';
+		tagNode.removeAttribute('ondblclick');
+		tagNode.removeAttribute('onDblClick');
+		tagNode.setAttribute('overClass', 'OverDragBox');
+		tagNode.setAttribute('dragClass', 'DragDragBox');
+		tagNode.setAttribute('draggable', 'true');
+		tagNode.setAttribute('data-tag-id', tagId);
+		tagNode.removeAttribute('data-thumb-id');
+	}
+
+	function set_thumb_tag_assigned_state(tagNode, thumbId, tagId) {
+		if (!tagNode) {
+			return;
+		}
+
+		tagNode.id = 'thumb_assigned_tag_' + tagId;
+		tagNode.className = 'DragBox';
+		tagNode.setAttribute('overClass', 'OverDragBox');
+		tagNode.setAttribute('dragClass', 'DragDragBox');
+		tagNode.setAttribute('data-tag-id', tagId);
+		tagNode.setAttribute('data-thumb-id', thumbId);
+		tagNode.setAttribute('draggable', 'false');
+		tagNode.setAttribute('ondblclick', 'removeThumbTag(' + parseInt(thumbId, 10) + ',' + parseInt(tagId, 10) + ', this)');
+	}
+
+	function ensure_thumb_tag_stack(thumbContainer) {
+		if (!thumbContainer) {
+			return null;
+		}
+
+		var stack = thumbContainer.querySelector('.gallery-single-thumb-tag-stack');
+		if (stack) {
+			return stack;
+		}
+
+		stack = document.createElement('div');
+		stack.className = 'gallery-single-thumb-tag-stack';
+		thumbContainer.appendChild(stack);
+		return stack;
+	}
+
+	function assign_thumb_tag_node_to_thumb(thumbContainer, tagNode, tagId) {
+		if (!thumbContainer || !tagNode || !tagId) {
+			return;
+		}
+
+		var thumbId = parseInt(thumbContainer.id, 10);
+		if (!thumbId) {
+			return;
+		}
+
+		var stack = ensure_thumb_tag_stack(thumbContainer);
+		set_thumb_tag_assigned_state(tagNode, thumbId, tagId);
+		stack.appendChild(tagNode);
+		enable_thumb_tag_drop(thumbId);
+	}
+
+	function force_render_thumb_tag(thumbContainer, tagId, tagName) {
+		if (!thumbContainer || !tagId) {
+			return null;
+		}
+
+		var existingNode = find_thumb_tag_node(tagId, thumbContainer.id);
+		if (existingNode && existingNode.parentNode) {
+			existingNode.parentNode.removeChild(existingNode);
+		}
+
+		cleanup_available_tag_node(tagId);
+
+		var assignedNode = create_thumb_tag_node(tagId, tagName);
+		assign_thumb_tag_node_to_thumb(thumbContainer, assignedNode, tagId);
+
+		return assignedNode;
+	}
+
+	function find_thumb_tag_node(tagId, thumbId) {
+		var node = document.getElementById('thumb_assigned_tag_' + tagId);
+		if (node) {
+			return node;
+		}
+
+		var thumbContainer = document.querySelector('.thumb[id="' + thumbId + '"], .thumb-movies[id="' + thumbId + '"], .thumb-gif[id="' + thumbId + '"]');
+		if (thumbContainer) {
+			var dragBoxes = thumbContainer.querySelectorAll('.DragBox');
+			for (var i = 0; i < dragBoxes.length; i++) {
+				if (extract_thumb_tag_id(dragBoxes[i]) === parseInt(tagId, 10)) {
+					return dragBoxes[i];
+				}
+			}
+		}
+
+		return document.getElementById('drag_tag_' + tagId);
+	}
+
+	function restore_thumb_tag_to_pool(tagNode, tagId) {
+		var pool = document.getElementById('DragContainer1');
+		if (!pool || !tagNode) {
+			return;
+		}
+
+		set_thumb_tag_available_state(tagNode, tagId);
+		pool.appendChild(tagNode);
+	}
+
+	function enable_thumb_tag_drop(thumbId) {
+		var thumbContainer = document.querySelector('.thumb[id="' + thumbId + '"], .thumb-movies[id="' + thumbId + '"], .thumb-gif[id="' + thumbId + '"]');
+		if (!thumbContainer) {
+			return;
+		}
+
+		thumbContainer.setAttribute('droppable', 'droppable');
+	}
+
+	function addThumbTag(thumbId, tagId, tagNode, callback) {
+		thumbId = parseInt(thumbId, 10);
+		tagId = parseInt(tagId, 10);
+
+		if (!thumbId || !tagId || !global_gal_id) {
+			if (callback) {
+				callback(false);
+			}
+			return false;
+		}
+
+		var request = new XMLHttpRequest();
+		var body = 'thumb_id=' + encodeURIComponent(thumbId)
+			+ '&tag_id=' + encodeURIComponent(tagId)
+			+ '&global_gal_id=' + encodeURIComponent(global_gal_id);
+
+		request.open('POST', 'util/gallery.add_thumb_tag.php', true);
+		request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+		request.onreadystatechange = function() {
+			if (request.readyState !== 4) {
+				return;
+			}
+
+			if (request.status !== 200) {
+				alert('Ошибка добавления тега на тумбу');
+				if (callback) {
+					callback(false);
+				}
+				return;
+			}
+
+			var data = null;
+			try {
+				data = JSON.parse(request.responseText);
+			} catch (e) {
+				alert('Некорректный ответ сервера при добавлении тега на тумбу');
+				if (callback) {
+					callback(false);
+				}
+				return;
+			}
+
+			if (!data || data.error) {
+				alert(data && data.error ? data.error : 'Добавление тега на тумбу не прошло');
+				if (callback) {
+					callback(false);
+				}
+				return;
+			}
+
+			if (callback) {
+				callback(true, data, tagNode);
+			}
+		};
+		request.send(body);
+		return false;
+	}
+
+	function removeThumbTag(thumbId, tagId, tagNode) {
+		thumbId = parseInt(thumbId, 10);
+		tagId = parseInt(tagId, 10);
+
+		if (!thumbId || !tagId || !global_gal_id) {
+			return false;
+		}
+
+		var assignedNode = tagNode || find_thumb_tag_node(tagId, thumbId);
+		var request = new XMLHttpRequest();
+		var body = 'thumb_id=' + encodeURIComponent(thumbId)
+			+ '&tag_id=' + encodeURIComponent(tagId)
+			+ '&global_gal_id=' + encodeURIComponent(global_gal_id);
+
+		request.open('POST', 'util/gallery.remove_thumb_tag.php', true);
+		request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+		request.onreadystatechange = function() {
+			if (request.readyState !== 4) {
+				return;
+			}
+
+			if (request.status !== 200) {
+				alert('Ошибка удаления тега с тумбы');
+				return;
+			}
+
+			var data = null;
+			try {
+				data = JSON.parse(request.responseText);
+			} catch (e) {
+				alert('Некорректный ответ сервера при удалении тега с тумбы');
+				return;
+			}
+
+			if (!data || data.error) {
+				alert(data && data.error ? data.error : 'Удаление тега с тумбы не прошло');
+				return;
+			}
+
+			if (assignedNode) {
+				restore_thumb_tag_to_pool(assignedNode, tagId);
+			}
+
+			enable_thumb_tag_drop(thumbId);
+		};
+		request.send(body);
+		return false;
+	}
+
+	function init_thumb_tag_remove_handlers() {
+		document.addEventListener('dblclick', function(event) {
+			var tagNode = event.target.closest('.gallery-single-thumbs-grid .DragBox');
+			if (!tagNode) {
+				return;
+			}
+
+			var pool = document.getElementById('DragContainer1');
+			if (pool && pool.contains(tagNode)) {
+				return;
+			}
+
+			var thumbContainer = tagNode.closest('.thumb, .thumb-movies, .thumb-gif');
+			if (!thumbContainer) {
+				return;
+			}
+
+			var tagId = extract_thumb_tag_id(tagNode);
+			if (!tagId) {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+			removeThumbTag(thumbContainer.id, tagId, tagNode);
+		});
+	}
+
+	function init_thumb_tag_dragdrop() {
+		var dragState = {
+			tagId: 0,
+			tagNode: null,
+			tagName: ''
+		};
+
+		document.addEventListener('dragstart', function(event) {
+			var tagNode = event.target.closest('.DragContainer .DragBox');
+			if (!tagNode) {
+				return;
+			}
+
+			var pool = document.getElementById('DragContainer1');
+			if (!pool || !pool.contains(tagNode)) {
+				return;
+			}
+
+			var tagId = extract_thumb_tag_id(tagNode);
+			if (!tagId) {
+				return;
+			}
+
+			dragState.tagId = tagId;
+			dragState.tagNode = tagNode;
+			dragState.tagName = tagNode.innerHTML;
+
+			if (event.dataTransfer) {
+				event.dataTransfer.effectAllowed = 'move';
+				event.dataTransfer.setData('text/plain', String(tagId));
+			}
+		}, true);
+
+		document.addEventListener('dragend', function() {
+			dragState.tagId = 0;
+			dragState.tagNode = null;
+			dragState.tagName = '';
+		}, true);
+
+		var thumbSelector = '.gallery-single-thumbs-grid .thumb, .gallery-single-thumbs-grid .thumb-movies, .gallery-single-thumbs-grid .thumb-gif';
+		var thumbContainers = document.querySelectorAll(thumbSelector);
+		for (var i = 0; i < thumbContainers.length; i++) {
+			(function(thumbContainer) {
+				thumbContainer.addEventListener('dragover', function(event) {
+					if (!dragState.tagId) {
+						return;
+					}
+
+					event.preventDefault();
+					if (event.dataTransfer) {
+						event.dataTransfer.dropEffect = 'move';
+					}
+				}, true);
+
+				thumbContainer.addEventListener('drop', function(event) {
+					if (!dragState.tagId) {
+						return;
+					}
+
+					event.preventDefault();
+					event.stopPropagation();
+
+					var thumbId = parseInt(thumbContainer.id, 10);
+					var tagId = dragState.tagId;
+					var sourceName = dragState.tagName;
+
+					addThumbTag(thumbId, tagId, null, function(success) {
+						if (!success) {
+							return;
+						}
+
+						force_render_thumb_tag(thumbContainer, tagId, sourceName);
+					});
+				}, true);
+			})(thumbContainers[i]);
+		}
+	}
+
+	function toggle_gallery_tech_panel() {
+		var panel = document.getElementById('gallery-tech-panel');
+		var button = document.getElementById('gallery-tech-panel-toggle');
+		if (!panel || !button) {
+			return false;
+		}
+
+		var panelDisplay = '';
+		if (window.getComputedStyle) {
+			panelDisplay = window.getComputedStyle(panel).display;
+		} else {
+			panelDisplay = panel.style.display;
+		}
+
+		if (panelDisplay === 'none') {
+			panel.style.display = 'block';
+			button.innerHTML = 'Скрыть техблок';
+		} else {
+			panel.style.display = 'none';
+			button.innerHTML = 'Показать техблок';
+		}
+
+		return false;
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init_gallery_tag_buttons_observer);
+		document.addEventListener('DOMContentLoaded', init_thumb_tag_remove_handlers);
+		document.addEventListener('DOMContentLoaded', init_thumb_tag_dragdrop);
+	} else {
+		init_gallery_tag_buttons_observer();
+		init_thumb_tag_remove_handlers();
+		init_thumb_tag_dragdrop();
+	}
+
 	function open_video_preview_modal(url, galId) {
 		var modal = document.getElementById('video-preview-modal');
 		var source = document.getElementById('video-preview-source');
@@ -1679,7 +2566,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 		var successBox = document.getElementById('video-preview-success');
 		var errorBox = document.getElementById('video-preview-error');
 
-		set_video_preview_processing(true, 'Постановка preview в очередь...');
+		set_video_preview_processing(true, 'Ставим в очередь...');
 		request.open('POST', 'util/video_preview_queue.php', true);
 		request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		request.onreadystatechange = function() {
@@ -1687,10 +2574,10 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 				return;
 			}
 
-			set_video_preview_processing(false, 'Статус: queued');
+			set_video_preview_processing(false, 'queued');
 
 			if (request.status !== 200) {
-				set_video_preview_processing(false, 'Статус: ошибка');
+				set_video_preview_processing(false, 'ошибка');
 				if (errorBox) {
 					errorBox.style.display = 'block';
 					errorBox.innerHTML = 'Ошибка постановки preview в очередь';
@@ -1702,7 +2589,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			try {
 				data = JSON.parse(request.responseText);
 			} catch (e) {
-				set_video_preview_processing(false, 'Статус: ошибка');
+				set_video_preview_processing(false, 'ошибка');
 				if (errorBox) {
 					errorBox.style.display = 'block';
 					errorBox.innerHTML = 'Некорректный ответ сервера';
@@ -1711,7 +2598,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			}
 
 			if (!data || data.error) {
-				set_video_preview_processing(false, 'Статус: ошибка');
+				set_video_preview_processing(false, 'ошибка');
 				if (errorBox) {
 					errorBox.style.display = 'block';
 					errorBox.innerHTML = data && data.error ? data.error : 'Ошибка постановки preview в очередь';
@@ -1720,7 +2607,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			}
 
 			if (data.status === 'ok' && data.preview_path) {
-				set_video_preview_processing(false, 'Статус: ok');
+				set_video_preview_processing(false, 'готово');
 				if (successBox) {
 					successBox.style.display = 'block';
 					successBox.innerHTML = 'Preview уже существует.';
@@ -1729,7 +2616,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			}
 
 			if (data.status === 'processing') {
-				set_video_preview_processing(false, 'Статус: processing');
+				set_video_preview_processing(false, 'обработка');
 				if (successBox) {
 					successBox.style.display = 'block';
 					successBox.innerHTML = 'Preview уже обрабатывается.';
@@ -1737,7 +2624,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 				return;
 			}
 
-			set_video_preview_processing(false, 'Статус: queued');
+			set_video_preview_processing(false, 'queued');
 			if (successBox) {
 				successBox.style.display = 'block';
 				successBox.innerHTML = 'Preview добавлено в очередь.';
@@ -1755,7 +2642,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 		var generateButton = document.getElementById('video-preview-generate-btn');
 		var openedFromExisting = !!document.getElementById('video-preview-open-btn').getAttribute('data-preview-url');
 
-		set_video_preview_processing(true, 'Генерация preview...');
+		set_video_preview_processing(true, 'Генерация...');
 		request.open('POST', 'util/video_preview_generate.php', true);
 		request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
 		request.onreadystatechange = function() {
@@ -1763,10 +2650,10 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 				return;
 			}
 
-			set_video_preview_processing(false, 'Статус: обработано');
+			set_video_preview_processing(false, 'обработано');
 
 			if (request.status !== 200) {
-				set_video_preview_processing(false, 'Статус: ошибка');
+				set_video_preview_processing(false, 'ошибка');
 				if (errorBox) {
 					errorBox.style.display = 'block';
 					errorBox.innerHTML = 'Ошибка генерации preview';
@@ -1778,7 +2665,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			try {
 				data = JSON.parse(request.responseText);
 			} catch (e) {
-				set_video_preview_processing(false, 'Статус: ошибка');
+				set_video_preview_processing(false, 'ошибка');
 				if (errorBox) {
 					errorBox.style.display = 'block';
 					errorBox.innerHTML = 'Некорректный ответ сервера';
@@ -1787,7 +2674,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 			}
 
 			if (!data || data.error) {
-				set_video_preview_processing(false, 'Статус: ошибка');
+				set_video_preview_processing(false, 'ошибка');
 				if (errorBox) {
 					errorBox.style.display = 'block';
 					errorBox.innerHTML = data && data.error ? data.error : 'Ошибка генерации preview';
@@ -1805,7 +2692,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 					generatedDate = new Date(generatedAt).toLocaleString();
 				}
 
-				set_video_preview_processing(false, 'Статус: ' + (data.preview.status ? data.preview.status : 'ready'));
+				set_video_preview_processing(false, data.preview.status ? data.preview.status : 'ready');
 				set_video_preview_meta_line('video-preview-meta-size', 'Размер: ' + ((data.preview.size || 0) / 1048576).toFixed(2) + ' Mb');
 				set_video_preview_meta_line('video-preview-meta-duration', 'Длительность: ' + ((data.preview.duration_ms || 0) / 1000).toFixed(1) + ' сек');
 				set_video_preview_meta_line('video-preview-meta-generated', generatedDate ? 'Обновлено: ' + generatedDate : '');

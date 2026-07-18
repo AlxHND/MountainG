@@ -344,9 +344,71 @@
     height:40px;
     margin:10px auto;
     padding:0;
-    width:1100px;
+    width:1360px;
+    max-width:calc(100% - 24px);
     z-index:10;
+    overflow:visible;
 }
+.mainmenu-tools {
+	position: absolute;
+	top: 5px;
+	right: 10px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	z-index: 20;
+}
+
+.mainmenu-go {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mainmenu-go input[type="text"],
+.mainmenu-go input[type="button"],
+.mainmenu-go input[type="submit"],
+.mainmenu-go input:not([type]) {
+	height: 28px;
+	box-sizing: border-box;
+}
+
+.mainmenu-go input[type="text"],
+.mainmenu-go input:not([type]) {
+	width: 52px;
+	padding: 0 6px;
+	border: 1px solid #666;
+	background: #f5f5f5;
+}
+
+.mainmenu-go input[type="button"],
+.mainmenu-go input[type="submit"] {
+	padding: 0 10px;
+	border: 1px solid #0186ba;
+	background: #04acec;
+	color: #fff;
+	cursor: pointer;
+}
+
+.mainmenu-logout {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 28px;
+	padding: 0 12px;
+	border: 1px solid #8d2525;
+	background: #b33636;
+	color: #fff;
+	text-decoration: none;
+	font: 12px Arial, Helvetica, sans-serif;
+	text-transform: uppercase;
+}
+
+.mainmenu-logout:hover {
+	background: #982c2c;
+	color: #fff;
+}
+
 #mainmenu ul, 
 #mainmenu ul ul {
 	list-style:none;
@@ -361,7 +423,9 @@
     float:right;
     text-align:center;
     font:12px Arial, Helvetica, sans-serif;
-	text-transform:uppercase;    
+	text-transform:uppercase;
+	padding-right:190px;
+	box-sizing:border-box;
 }
 #mainmenu ul li {
 	border-right: 1px solid #222;
@@ -385,7 +449,7 @@
     display:block;
     color: #ccc;
     text-decoration: none;
-    padding:13px 20px
+    padding:13px 16px
 }
 #mainmenu ul li a:hover {
 	background-color: #0186BA;

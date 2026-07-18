@@ -825,7 +825,8 @@ $sql = [];
 		  `tag_id` int(10) unsigned NOT NULL,
 		  `added_on` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		  PRIMARY KEY (`id`),
-		  UNIQUE KEY `thumb_id` (`thumb_id`),
+		  UNIQUE KEY `gal_tag` (`gal_id`,`tag_id`),
+		  KEY `thumb_id` (`thumb_id`),
 		  KEY `tag_id` (`tag_id`),
 		  KEY `gal_id` (`gal_id`)
 		)  DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;";

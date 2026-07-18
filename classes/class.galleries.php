@@ -2959,10 +2959,14 @@ class Galleries
 		$gal_id = intval($gal_id);
 		if ($gal_id && $thumb_id && $tag_id) {
 			if ($this->getImage($thumb_id)) {
+				// One tag may belong to only one thumb inside a gallery, but a thumb may contain several tags.
 				$sql = "INSERT INTO thumbs_tags
-						(gal_id, thumb_id,tag_id)
-						VALUE 
-						('" . $gal_id . "', '" . $thumb_id . "', '" . $tag_id . "')";
+						(gal_id, thumb_id, tag_id)
+						VALUES
+						('" . $gal_id . "', '" . $thumb_id . "', '" . $tag_id . "')
+						ON DUPLICATE KEY UPDATE
+							thumb_id = VALUES(thumb_id),
+							added_on = CURRENT_TIMESTAMP";
 				// var_dump($sql);
 				$rs = $this->_db->query($sql);
 				if ($rs) $result = true;
