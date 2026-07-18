@@ -166,6 +166,206 @@ class Sources {
 		return $stmt->rowCount() > 0;
 	}
 
+	public function getPaysiteUpdateMarkerTypes()
+	{
+		return array(
+			'latest' => 'Последний по времени',
+			'backfill' => 'Последний из старых',
+		);
+	}
+
+	public function getPaysiteUpdateMarkerById($markerId)
+	{
+		$markerId = (int)$markerId;
+		if ($markerId <= 0) {
+			return false;
+		}
+
+		$sql = "SELECT markers.id, markers.paysite_id, markers.marker_type, markers.update_title,
+					markers.update_page_url, markers.update_inner_date, markers.created_at, markers.updated_at,
+					paysites.paysite_name
+				FROM paysite_update_markers AS markers
+				LEFT JOIN paysites ON paysites.paysite_id = markers.paysite_id
+				WHERE markers.id = :id";
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute(array('id' => $markerId));
+
+		return $stmt->fetch(\PDO::FETCH_ASSOC);
+	}
+
+	public function getPaysiteUpdateMarker($paysiteId, $markerType)
+	{
+		$paysiteId = (int)$paysiteId;
+		$markerType = trim((string)$markerType);
+		$types = $this->getPaysiteUpdateMarkerTypes();
+		if ($paysiteId <= 0 || !isset($types[$markerType])) {
+			return false;
+		}
+
+		$sql = "SELECT id, paysite_id, marker_type, update_title, update_page_url, update_inner_date, created_at, updated_at
+				FROM paysite_update_markers
+				WHERE paysite_id = :paysite_id
+				AND marker_type = :marker_type";
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute(array(
+			'paysite_id' => $paysiteId,
+			'marker_type' => $markerType,
+		));
+
+		return $stmt->fetch(\PDO::FETCH_ASSOC);
+	}
+
+	public function getPaysiteUpdateMarkersByPaysite($paysiteId)
+	{
+		$paysiteId = (int)$paysiteId;
+		if ($paysiteId <= 0) {
+			return array();
+		}
+
+		$sql = "SELECT id, paysite_id, marker_type, update_title, update_page_url, update_inner_date, created_at, updated_at
+				FROM paysite_update_markers
+				WHERE paysite_id = :paysite_id
+				ORDER BY marker_type ASC";
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute(array('paysite_id' => $paysiteId));
+
+		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+	}
+
+	public function findPaysiteUpdateMarkers(array $filters = array())
+	{
+		$where = array();
+		$params = array();
+		$types = $this->getPaysiteUpdateMarkerTypes();
+
+		if (!empty($filters['paysite_id'])) {
+			$where[] = "markers.paysite_id = :paysite_id";
+			$params['paysite_id'] = (int)$filters['paysite_id'];
+		}
+
+		if (!empty($filters['marker_type']) && isset($types[$filters['marker_type']])) {
+			$where[] = "markers.marker_type = :marker_type";
+			$params['marker_type'] = $filters['marker_type'];
+		}
+
+		if (!empty($filters['query'])) {
+			$where[] = "(markers.update_title LIKE :query OR markers.update_page_url LIKE :query OR paysites.paysite_name LIKE :query)";
+			$params['query'] = '%' . trim((string)$filters['query']) . '%';
+		}
+
+		$allowedSort = array(
+			'updated_at' => 'markers.updated_at',
+			'inner_date' => 'markers.update_inner_date',
+			'paysite_name' => 'paysites.paysite_name',
+			'marker_type' => 'markers.marker_type',
+		);
+		$sortBy = isset($filters['sort_by'], $allowedSort[$filters['sort_by']]) ? $allowedSort[$filters['sort_by']] : 'markers.updated_at';
+		$sortDir = (isset($filters['sort_dir']) && strtolower((string)$filters['sort_dir']) === 'asc') ? 'ASC' : 'DESC';
+		$limit = isset($filters['limit']) ? (int)$filters['limit'] : 100;
+		if ($limit <= 0) {
+			$limit = 100;
+		}
+		if ($limit > 1000) {
+			$limit = 1000;
+		}
+
+		$sql = "SELECT markers.id, markers.paysite_id, markers.marker_type, markers.update_title,
+					markers.update_page_url, markers.update_inner_date, markers.created_at, markers.updated_at,
+					paysites.paysite_name
+				FROM paysite_update_markers AS markers
+				LEFT JOIN paysites ON paysites.paysite_id = markers.paysite_id";
+		if ($where) {
+			$sql .= " WHERE " . implode(" AND ", $where);
+		}
+		$sql .= " ORDER BY " . $sortBy . " " . $sortDir . ", markers.id " . $sortDir . " LIMIT " . $limit;
+
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute($params);
+
+		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+	}
+
+	public function savePaysiteUpdateMarker($paysiteId, $markerType, $title, $pageUrl, $innerDate = null, $markerId = null)
+	{
+		$paysiteId = (int)$paysiteId;
+		$markerId = (int)$markerId;
+		$markerType = trim((string)$markerType);
+		$title = trim((string)$title);
+		$pageUrl = trim((string)$pageUrl);
+		$types = $this->getPaysiteUpdateMarkerTypes();
+
+		if ($paysiteId <= 0) {
+			throw new Exception('Paysite ID is required');
+		}
+		if (!isset($types[$markerType])) {
+			throw new Exception('Unknown marker type');
+		}
+		if ($title === '' && $pageUrl === '' && ($innerDate === null || $innerDate === '')) {
+			throw new Exception('At least one marker field must be filled');
+		}
+
+		$innerDate = trim((string)$innerDate);
+		if ($innerDate === '') {
+			$innerDate = null;
+		}
+
+		if ($markerId > 0) {
+			$sql = "UPDATE paysite_update_markers
+					SET paysite_id = :paysite_id,
+						marker_type = :marker_type,
+						update_title = :update_title,
+						update_page_url = :update_page_url,
+						update_inner_date = :update_inner_date,
+						updated_at = NOW()
+					WHERE id = :id";
+			$params = array(
+				'paysite_id' => $paysiteId,
+				'marker_type' => $markerType,
+				'update_title' => $title,
+				'update_page_url' => $pageUrl,
+				'update_inner_date' => $innerDate,
+				'id' => $markerId,
+			);
+		} else {
+			$existing = $this->getPaysiteUpdateMarker($paysiteId, $markerType);
+			if ($existing) {
+				$markerId = (int)$existing['id'];
+				return $this->savePaysiteUpdateMarker($paysiteId, $markerType, $title, $pageUrl, $innerDate, $markerId);
+			}
+
+			$sql = "INSERT INTO paysite_update_markers
+					(paysite_id, marker_type, update_title, update_page_url, update_inner_date, created_at, updated_at)
+					VALUES
+					(:paysite_id, :marker_type, :update_title, :update_page_url, :update_inner_date, NOW(), NOW())";
+			$params = array(
+				'paysite_id' => $paysiteId,
+				'marker_type' => $markerType,
+				'update_title' => $title,
+				'update_page_url' => $pageUrl,
+				'update_inner_date' => $innerDate,
+			);
+		}
+
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute($params);
+
+		return $markerId > 0 ? $markerId : (int)$this->_db->lastInsertId();
+	}
+
+	public function deletePaysiteUpdateMarker($markerId)
+	{
+		$markerId = (int)$markerId;
+		if ($markerId <= 0) {
+			return false;
+		}
+
+		$sql = "DELETE FROM paysite_update_markers WHERE id = :id";
+		$stmt = $this->_db->prepare($sql);
+		$stmt->execute(array('id' => $markerId));
+
+		return $stmt->rowCount() > 0;
+	}
+
 	// возвращает массив заполненый данными о модели с id, объект переинициализируется в соответствии с айди.
 	function getSource($source_id) {
 		$source_id = (int)$source_id;

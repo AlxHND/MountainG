@@ -378,6 +378,21 @@ $sql = [];
 			  KEY `affiliate_program_url` (`affiliate_program_url`)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
 
+			$sql[] = "CREATE TABLE IF NOT EXISTS `paysite_update_markers` (
+			  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+			  `paysite_id` int(10) unsigned NOT NULL,
+			  `marker_type` enum('latest','backfill') NOT NULL,
+			  `update_title` varchar(255) NOT NULL DEFAULT '',
+			  `update_page_url` varchar(255) NOT NULL DEFAULT '',
+			  `update_inner_date` datetime DEFAULT NULL,
+			  `created_at` datetime NOT NULL,
+			  `updated_at` datetime NOT NULL,
+			  PRIMARY KEY (`id`),
+			  UNIQUE KEY `paysite_marker_type` (`paysite_id`,`marker_type`),
+			  KEY `marker_type` (`marker_type`),
+			  KEY `update_inner_date` (`update_inner_date`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;";
+
 			$sql[] = "CREATE TABLE IF NOT EXISTS `paysites` (
 			  `paysite_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
 			  `paysite_name` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',

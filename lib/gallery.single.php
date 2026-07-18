@@ -334,56 +334,327 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 		$queryStringAddition .= "&amp;site_id=" . $site_id . "&amp;local_gal_id=" . $local_gal_id;
 		$local_title = $gallery_worker->getLocalTitle($site_id, $local_gal_id);
 	}
+?>
+	<style type="text/css">
+		.gallery-single-panel {
+			width: 1400px;
+			max-width: 100%;
+			margin: 0 auto;
+			text-align: left;
+			font-size: 13px;
+		}
+
+		.gallery-single-controls {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			align-items: center;
+			margin: 14px 0 12px;
+			padding: 12px;
+			background: #f7f8fb;
+			border: 1px solid #d8deea;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-controls-main {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			align-items: center;
+			width: 100%;
+		}
+
+		.gallery-single-control-group {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.gallery-single-control-group select,
+		.gallery-single-form select,
+		.gallery-single-form input[type="text"],
+		.gallery-single-form textarea,
+		.gallery-single-form input[type="number"],
+		.gallery-single-panel input[type="button"],
+		.gallery-single-panel input[type="submit"],
+		.gallery-single-panel button {
+			height: 36px;
+			padding: 0 10px;
+			border: 1px solid #bfc7d6;
+			box-sizing: border-box;
+			background: #fff;
+			font-size: 13px;
+			font-family: Arial, Helvetica, sans-serif;
+		}
+
+		.gallery-single-form textarea {
+			height: auto;
+			min-height: 72px;
+			padding: 8px 10px;
+			resize: vertical;
+		}
+
+		.gallery-single-panel input[type="submit"],
+		.gallery-single-panel input[type="button"],
+		.gallery-single-panel button {
+			padding: 0 14px;
+			border: 1px solid #244db3;
+			background: #2d5bd1;
+			color: #fff;
+			cursor: pointer;
+		}
+
+		.gallery-single-panel input[type="submit"]:hover,
+		.gallery-single-panel input[type="button"]:hover,
+		.gallery-single-panel button:hover {
+			background: #244db3;
+		}
+
+		.gallery-single-controls-link {
+			margin-left: auto;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			height: 36px;
+			padding: 0 14px;
+			background: #2d5bd1;
+			border: 1px solid #244db3;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-controls-link a {
+			color: #fff;
+			text-decoration: none;
+			font-weight: bold;
+		}
+
+		.gallery-single-info-bar {
+			display: block;
+			width: 100%;
+			margin: 10px 0;
+			padding: 10px 12px;
+			background: #f7f8fb;
+			border: 1px solid #d8deea;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-meta-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			align-items: center;
+			margin: 0 0 10px;
+		}
+
+		.gallery-single-actions-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			align-items: center;
+			justify-content: space-between;
+			margin: 0 0 10px;
+		}
+
+		.gallery-single-field-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			align-items: center;
+			margin: 8px 0;
+		}
+
+		.gallery-single-field-label {
+			width: 100px;
+			min-width: 100px;
+			color: #5d6678;
+		}
+
+		.gallery-single-field-input {
+			flex: 1 1 760px;
+			min-width: 280px;
+		}
+
+		.gallery-single-length-box {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 52px;
+			height: 36px;
+			padding: 0 10px;
+			background: #e4e4e4;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-tag-summary {
+			margin: 0 auto 14px;
+			padding: 10px 12px;
+			width: 1400px;
+			max-width: 100%;
+			background: #f7f8fb;
+			border: 1px solid #d8deea;
+			box-sizing: border-box;
+			font-size: 15px;
+		}
+
+		.gallery-single-posted-list {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			width: 100%;
+			margin-top: 10px;
+			padding: 10px;
+			border: 1px solid #d8deea;
+			background: #f7f8fb;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-posted-item {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: space-between;
+			gap: 10px;
+			padding: 8px 10px;
+			background: #fff;
+			border: 1px solid #d8deea;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-posted-item-main {
+			flex: 1 1 600px;
+			min-width: 260px;
+		}
+
+		.gallery-single-posted-item-link {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.gallery-single-posted-item-side {
+			display: flex;
+			align-items: center;
+		}
+
+		.gallery-single-meta-line {
+			line-height: 1.6;
+		}
+
+		.gallery-single-source-row {
+			width: 100%;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.gallery-single-counter-box {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-width: 52px;
+			height: 36px;
+			padding: 0 10px;
+			background: #e4e4e4;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-additional-titles {
+			width: 100%;
+			margin: 16px 0;
+			padding: 12px;
+			border: 1px solid #d8deea;
+			background: #f7f8fb;
+			box-sizing: border-box;
+		}
+
+		.gallery-single-additional-actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			align-items: center;
+			justify-content: space-between;
+			margin-top: 12px;
+		}
+
+		.gallery-single-additional-actions-left {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			align-items: center;
+			flex: 1 1 720px;
+			min-width: 260px;
+		}
+
+		.gallery-single-additional-button {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			height: 36px;
+			padding: 0 14px;
+			border: 1px solid #244db3;
+			background: #2d5bd1;
+			color: #fff;
+			font-weight: bold;
+			cursor: pointer;
+			box-sizing: border-box;
+		}
+	</style>
+<?php
 	// только для админа
 	// var_dump($gallery['additional_titles']);	
 	if ($tagFlag == 1) {
 
 ?>
-		<form name=selector style="height: 30px; display: block;" id="block-block-block">
-			<div style="width:100%; height: auto; display: block;">
-				<div style="float: left;">
-					&nbsp;
-					<select name="type" id="type" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
-						<option value="all">Контент</option>
-						<option value="pics" <?php if ($galleries_type == "pics") echo " selected"; ?>>Pics</option>
-						<option value="movies" <?php if ($galleries_type == "movies") echo " selected"; ?>>Movies</option>
-					</select>
-					&nbsp;
-					<select name="niche" id="niche" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
-						<option value="all">Ниша</option>
-						<option value="Gay" <?php if ($galleryNiche == "Gay") echo " selected"; ?>>Gay</option>
-						<option value="Shemale" <?php if ($galleryNiche == "Shemale") echo " selected"; ?>>Shemale</option>
-						<option value="Straight" <?php if ($galleryNiche == "Straight") echo " selected"; ?>>Straight</option>
-					</select>
-					&nbsp;
-					<select name="category" id="category"
-						onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
-						<option value="all">Категория</option>
-						<?php
-						$default->AllTagsToString("<option value=\"#TAG_ID#\">#TAG#</option>");
-						?>
-					</select>
-					&nbsp;
-					<select name="paysite" id="paysite" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
-						<option value="all">Платник</option>
-						<?php $sources->listSourcesGalsLight("<option value=\"#PAYSITE_ID#\"#CHECKED#>#PAYSITE#, последний апдейт: #LAST_UPDATE#</option>", $galleryPaysite);  ?>
-					</select>
-					<select name="crop" id="crop" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
-						<option value="all">Все</option>
-						<option value="yes" <?php if ($croppedTagFlag) echo " selected"; ?>>Только кропнутые</option>
-					</select>
-					<select name="sort_by_date" id="sort_by_date"
-						onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
-						<option value="all">В разнобой</option>
-						<option value="asc" <?php if ($sort_by_date == "asc") echo " selected"; ?>>По дате A-Z</option>
-						<option value="desc" <?php if ($sort_by_date == "desc") echo " selected"; ?>>По дате Z-A</option>
-					</select>
+		<div class="gallery-single-panel">
+		<form name=selector id="block-block-block">
+			<div class="gallery-single-controls">
+				<div class="gallery-single-controls-main">
+					<div class="gallery-single-control-group">
+						<select name="type" id="type" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
+							<option value="all">Контент: все</option>
+							<option value="pics" <?php if ($galleries_type == "pics") echo " selected"; ?>>Pics</option>
+							<option value="movies" <?php if ($galleries_type == "movies") echo " selected"; ?>>Movies</option>
+						</select>
+					</div>
+					<div class="gallery-single-control-group">
+						<select name="niche" id="niche" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
+							<option value="all">Ниша: все</option>
+							<option value="Gay" <?php if ($galleryNiche == "Gay") echo " selected"; ?>>Gay</option>
+							<option value="Shemale" <?php if ($galleryNiche == "Shemale") echo " selected"; ?>>Shemale</option>
+							<option value="Straight" <?php if ($galleryNiche == "Straight") echo " selected"; ?>>Straight</option>
+						</select>
+					</div>
+					<div class="gallery-single-control-group">
+						<select name="category" id="category" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
+							<option value="all">Категория: все</option>
+							<?php $default->AllTagsToString("<option value=\"#TAG_ID#\">#TAG#</option>"); ?>
+						</select>
+					</div>
+					<div class="gallery-single-control-group">
+						<select name="paysite" id="paysite" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
+							<option value="all">Платник: все</option>
+							<?php $sources->listSourcesGalsLight("<option value=\"#PAYSITE_ID#\"#CHECKED#>#PAYSITE#, последний апдейт: #LAST_UPDATE#</option>", $galleryPaysite);  ?>
+						</select>
+					</div>
+					<div class="gallery-single-control-group">
+						<select name="crop" id="crop" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
+							<option value="all">Кроп: все</option>
+							<option value="yes" <?php if ($croppedTagFlag) echo " selected"; ?>>Только кропнутые</option>
+						</select>
+					</div>
+					<div class="gallery-single-control-group">
+						<select name="sort_by_date" id="sort_by_date" onChange="searchTagsOptions(this.id,this.value,'<?= $galleries_type ?>')">
+							<option value="all">Дата: вразнобой</option>
+							<option value="asc" <?php if ($sort_by_date == "asc") echo " selected"; ?>>По дате A-Z</option>
+							<option value="desc" <?php if ($sort_by_date == "desc") echo " selected"; ?>>По дате Z-A</option>
+						</select>
+					</div>
+					<div id="searchResult" class="gallery-single-controls-link"><a href="<?= $queryStringAddition ?>">Выбрать условия</a></div>
 				</div>
-				<div id="searchResult" class="searchResult" style="float:right;"></div>
 			</div>
 		</form>
+		</div>
 		<div style="clear: both;"></div>
-		<?php if (isset($galToTagCount)) { ?><div style="font-size: 15px; padding: 15px;">Осталось проставить теги на
+		<?php if (isset($galToTagCount)) { ?><div class="gallery-single-tag-summary">Осталось проставить теги на
 				<b><?= $galToTagCount ?></b> галерах
 			</div><?php } ?>
 		<div style="clear:both"></div>
@@ -407,7 +678,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 	?>
 		<br />
 
-		<form name=stats enctype="multipart/form-data" action="<?= $queryStringAddition ?>" method="post">
+		<form class="gallery-single-form gallery-single-panel" name=stats enctype="multipart/form-data" action="<?= $queryStringAddition ?>" method="post">
 			<div style="display: none;"><input name="gallery-id" size="45" value="<?= $galleryId ?>"><input name="set_cropped"
 					size="45" value="<?= $set_cropped ?>"></div>
 
@@ -580,7 +851,7 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 				if ($gallery['status'] == 'OK') {
 					if (is_array($gallery['posted_to'])) { ?>
 						Posted to:
-						<div style="width: 1320px; border: 1px solid #777;">
+						<div class="gallery-single-posted-list">
 							<?php
 							$sites_worker = new Sites($db->_db);
 							foreach ($gallery['posted_to'] as $posted_to) {
@@ -593,45 +864,43 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 								$urlRules = str_replace("#ID#", $galleryId, $urlRules);
 								$urlRules = str_replace("#GALNAME#", $gal_local_info['url_desc'], $urlRules);
 							?>
-								<div style="float: left; margin: 3px; padding: 5px; width: 1300px; background-color: #eee;">
-									<div style="float: left;">
+								<div class="gallery-single-posted-item">
+									<div class="gallery-single-posted-item-main">
 										<?php if ($posted_to == $site_id) { ?><div style="float: left; margin-right: 10px; color: red;">&bullet;
 											</div><?php } ?>
-										Site ID: <?= $posted_to ?>, URL: <a href=<?= $urlRules ?>><?= $urlRules ?></a>
+										<div class="gallery-single-posted-item-link">Site ID: <?= $posted_to ?>, URL: <a href=<?= $urlRules ?>><?= $urlRules ?></a></div>
 									</div>
-									<div style="float: right;">
+									<div class="gallery-single-posted-item-side">
 										<a
 											href="index.php?act=galleries&amp;galid=<?= $galleryId ?>&amp;site_id=<?= $posted_to ?>&amp;local_gal_id=<?= $gal_local_info['local_id'] ?>">Локальный
 											тайтл</a>
 									</div>
-									<div style="clear: both;"></div>
 								</div>
-								<br />
 							<?php
 							}
 							?>
-							<div style="clear: both;"></div>
 						</div>
 				<?php
 					}
 				}
 				?>
 				<hr>
-				<div style="clear: both;"></div>
-				<div style="float: left;">
-					Отключить мусор из инфы: <input type="checkbox" <?= $no_info ? 'checked="true"' : false ?> name="no_info"
-						id="no_info" />
-				</div>
-				<?php if ($gallery['type'] == 'Pics') { ?>
-					<div style="float: right;">
-						<?= $gallery['horiz_size'] ? "Тумбы в ресайзе OK" : "Нет тумб в ресайзе"; ?>
-						| <input type="submit" value="Сделать ресайз тумб по горизонтали" name="resize_horiz_thumbs"
-							id="<?= $galleryId ?>" onclick="return confirm();" />
+				<div class="gallery-single-actions-row">
+					<div class="gallery-single-control-group">
+						<span>Отключить мусор из инфы:</span>
+						<input type="checkbox" <?= $no_info ? 'checked="true"' : false ?> name="no_info" id="no_info" />
 					</div>
+					<?php if ($gallery['type'] == 'Pics') { ?>
+						<div class="gallery-single-control-group">
+							<span><?= $gallery['horiz_size'] ? "Тумбы в ресайзе OK" : "Нет тумб в ресайзе"; ?></span>
+							<input type="submit" value="Сделать ресайз тумб по горизонтали" name="resize_horiz_thumbs"
+								id="<?= $galleryId ?>" onclick="return confirm();" />
+						</div>
 
-				<?php 					} ?>
-				<div style="clear: both;"></div>
+					<?php 					} ?>
+				</div>
 				<hr>
+				<div class="gallery-single-info-bar">
 				<?php $gallery_user_info = $userAuth->getUsers($user_id);
 				if ($gallery_user && $gallery_user_info && is_array($gallery_user_info) && isset($gallery_user_info[$gallery_user])) {
 				?>
@@ -658,11 +927,12 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 																														echo "| Уникальная для сайта " . $gallery['unique_for_export_site'];
 																													}
 																												} /*if admin end*/ ?>
-					<br /><br />
-					<div style="width: 1200px; height: 15px; display: block; float: none; text-overflow: ellipsis; overflow: hidden;">
+					</div>
+					<div class="gallery-single-info-bar gallery-single-source-row">
 						Исходный URL: <strong><a href="<?= $gallery_source_url ?>"><?= $gallery_source_url ?></a></strong></div>
 					<hr>
 
+					<div class="gallery-single-info-bar gallery-single-meta-line">
 					Сегодня обработано: <b><?= $userAuth->todayTaggedGals($user_id) ?></b>, из них новых <b><?= $galleries_OKed_today ?></b>
 					|
 					GID: <strong><a href="index.php?act=galleries&amp;galid=<?= $gallery['id'] ?>"><?= $gallery['id'] ?></a></strong> |
@@ -746,13 +1016,14 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 								onclick="return check_gallery_ok();" />
 						</div>
 					<?php
-										}
+						}
 					?>
 					<div style="float: right;">
 						<input type="submit" value="Изменить галеру" name="edit-gallery" id="<?= $galleryId ?>"
 							onclick="return check_gallery_ok();" />
 					</div>
 					<div style="clear:both"></div>
+					</div>
 					<hr>
 					<?php
 										if (isset($galleryToTagInfo['skeep_reason'])) { ?>
@@ -763,37 +1034,34 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 					<?php
 										}
 					?>
-					<div style="width: 100%; height: 30px; display: block-inline; float: left; margin: 3px;">
-						<div style="float: left;">
-							<div style="width:100px; padding: 3px; margin: 3px; float: left; text-align: left;">Тайтл:</div>
-							<input name="title" id="gallery_title" size="122"
+					<div class="gallery-single-field-row">
+						<div class="gallery-single-field-label">Тайтл:</div>
+						<div class="gallery-single-field-input">
+							<input style="width: 100%;" name="title" id="gallery_title"
 								value="<?php if ($local_title) echo htmlspecialchars($local_title);
 										else echo htmlspecialchars($gallery['title']) ?>"
 								onkeyup="chageLength(this.value,this.name)">
 						</div>
-						<div style="margin-left:10px; padding: 4px; float: left; background: #e4e4e4;">
+						<div class="gallery-single-counter-box">
 							<div id="titleL"><?php echo strlen($gallery['title']) ?></div>
 						</div>
 					</div>
 
-					<div style="width: 100%; height: 30px; display: block-inline; float: left; margin: 3px;">
-						<div style=" float: left;">
-							<div style="width:100px; padding: 3px; margin: 3px; float: left; text-align: left;">
-								Деск:
-							</div>
-							<input name="description" size="125" value="<?php echo htmlspecialchars($gallery['description']) ?>"
+					<div class="gallery-single-field-row">
+						<div class="gallery-single-field-label">Деск:</div>
+						<div class="gallery-single-field-input">
+							<input style="width: 100%;" name="description" value="<?php echo htmlspecialchars($gallery['description']) ?>"
 								onkeyup="chageLength(this.value,this.name)">
 						</div>
-						<div style="margin-left:10px; padding: 4px; float: left; background: #e4e4e4;">
+						<div class="gallery-single-counter-box">
 							<div id="descriptionL"><?php echo strlen($gallery['description']) ?></div>
 						</div>
 					</div>
 					<?php
 										if (!$site_id && !$local_gal_id && !$no_info) {
 					?>
-						<div
-							style="width: 1280px; height: 80px; display: block-inline; float: left; margin: 16px; border: 1px solid #000; padding: 10px; background-color: #ddd;">
-							<select id="all_titles_select" style="float: left;">
+						<div class="gallery-single-additional-titles">
+							<select id="all_titles_select">
 								<option value="0">Добавить тайтл</option>
 								<?php if (isset($gallery['additional_titles']) && $gallery['additional_titles'] && is_array($gallery['additional_titles'])) { ?>
 									<?php foreach ($gallery['additional_titles'] as $additional_title) { ?>
@@ -802,27 +1070,27 @@ if (isset($_GET['design_type']) && $_GET['design_type'] == 'multi') {
 									<?php } ?>
 								<?php } ?>
 							</select>
-							<div style="clear:both"></div>
 							<hr />
-							<div style="float: left;">
+							<div class="gallery-single-additional-actions">
+								<div class="gallery-single-additional-actions-left">
 								<select id="add_title_language">
 									<option value="en">Английский</option>
 									<option value="ru">Русский</option>
 									<option value="nl">Голландский</option>
 									<option value="fr">Французский</option>
 								</select>
-								<input name="add_title" id="add_title" size="100" value="<?php echo htmlspecialchars($gallery['title']) ?>"
+								<input style="flex: 1 1 640px; min-width: 260px;" name="add_title" id="add_title" value="<?php echo htmlspecialchars($gallery['title']) ?>"
 									onkeyup="chageLength(this.value,this.name)">
-							</div>
-							<div style="margin-left:10px; padding: 4px; float: left; background: #e4e4e4;">
+								</div>
+							<div class="gallery-single-counter-box">
 								<div id="add_titleL"><?php echo strlen($gallery['title']) ?></div>
 							</div>
-							<div style="float: right; padding: 5px; border: 2px #666 solid; background-color: #555; color: #fff; font-weight: bold;"
+							<div class="gallery-single-additional-button"
 								onclick="add_new_title(<?= $gallery['id'] ?>); return false;">
 								Добавить...
 							</div>
 						</div>
-						<div style="clear:both"></div>
+						</div>
 						<?php
 										}
 										// боковое меню модели

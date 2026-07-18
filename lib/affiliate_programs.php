@@ -1,5 +1,23 @@
 <?php
 
+if (!function_exists('affiliate_programs_h')) {
+	function affiliate_programs_h($value)
+	{
+		return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+	}
+}
+
+if (!function_exists('affiliate_programs_lower')) {
+	function affiliate_programs_lower($value)
+	{
+		$value = (string)$value;
+		if (function_exists('mb_strtolower')) {
+			return mb_strtolower($value, 'UTF-8');
+		}
+		return strtolower($value);
+	}
+}
+
 $sources = new Sources($db->_db);
 $message = '';
 $messageType = 'ok';
@@ -59,6 +77,48 @@ if (!$editingProgram) {
 }
 
 $affiliatePrograms = $sources->getAffiliatePrograms();
+$affiliateProgramsRows = '';
+if ($affiliatePrograms) {
+	foreach ($affiliatePrograms as $program) {
+		$programId = (int)$program['affiliate_program_id'];
+		$programName = isset($program['affiliate_program_name']) ? trim((string)$program['affiliate_program_name']) : '';
+		$programUrl = isset($program['affiliate_program_url']) ? trim((string)$program['affiliate_program_url']) : '';
+		$programDescription = isset($program['affiliate_program_description']) ? trim((string)$program['affiliate_program_description']) : '';
+		$paysitesCount = isset($program['paysites_count']) ? (int)$program['paysites_count'] : 0;
+		$updatedAt = isset($program['updated_at']) ? trim((string)$program['updated_at']) : '';
+		$updatedAtTs = $updatedAt !== '' ? strtotime($updatedAt) : 0;
+		if ($updatedAtTs === false) {
+			$updatedAtTs = 0;
+		}
+
+		$programFilterText = affiliate_programs_lower(trim($programName . ' ' . $programUrl . ' ' . $programDescription));
+
+		$affiliateProgramsRows .= "<tr class='affiliate-program-row' data-name='" . affiliate_programs_h(affiliate_programs_lower($programName)) . "' data-filter='" . affiliate_programs_h($programFilterText) . "'>";
+		$affiliateProgramsRows .= "<td align='center' data-sort='" . $programId . "'>" . $programId . "</td>";
+		$affiliateProgramsRows .= "<td data-sort='" . affiliate_programs_h(affiliate_programs_lower($programName)) . "'>
+				<strong>" . affiliate_programs_h($programName) . "</strong>";
+		if ($programDescription !== '') {
+			$affiliateProgramsRows .= "<div class='affiliate-programs-muted'>" . affiliate_programs_h($programDescription) . "</div>";
+		}
+		$affiliateProgramsRows .= "</td>";
+		$affiliateProgramsRows .= "<td data-sort='" . affiliate_programs_h(affiliate_programs_lower($programUrl)) . "' class='affiliate-programs-url'>" . affiliate_programs_h($programUrl) . "</td>";
+		$affiliateProgramsRows .= "<td align='center' data-sort='" . $paysitesCount . "'>" . $paysitesCount . "</td>";
+		$affiliateProgramsRows .= "<td align='center' data-sort='" . (int)$updatedAtTs . "'>" . affiliate_programs_h($updatedAt) . "</td>";
+		$affiliateProgramsRows .= "<td align='center'>
+				<a href='index.php?act=affiliate_programs&amp;edit_program=" . $programId . "'>Edit</a>";
+		if ($paysitesCount === 0) {
+			$affiliateProgramsRows .= "
+				<form method='post' action='index.php?act=affiliate_programs' style='display:inline;' onsubmit=\"return confirm('Удалить affiliate program?');\">
+					<input type='hidden' name='affiliate_program_id' value='" . $programId . "'>
+					<input type='submit' name='delete_affiliate_program' value='Delete' style='color:#900; background:none; border:none; cursor:pointer; text-decoration:underline;'>
+				</form>";
+		} else {
+			$affiliateProgramsRows .= " <span class='affiliate-programs-muted'>In use</span>";
+		}
+		$affiliateProgramsRows .= "</td>";
+		$affiliateProgramsRows .= "</tr>";
+	}
+}
 ?>
 
 <div style="width: 1400px; margin: 0 auto; text-align:left;">
@@ -111,48 +171,238 @@ $affiliatePrograms = $sources->getAffiliatePrograms();
 
 	<div style="overflow:hidden;">
 		<h3 style="margin-top:0;">Список программ</h3>
-		<table cellpadding="4" cellspacing="1" width="100%" style="background:#d8d8d8;">
-			<tr style="background:#efefef;">
-				<th width="50">ID</th>
-				<th>Name</th>
-				<th>URL</th>
-				<th width="90">Paysites</th>
-				<th width="180">Updated</th>
-				<th width="120">Действия</th>
-			</tr>
-			<?php if ($affiliatePrograms) { ?>
-				<?php foreach ($affiliatePrograms as $program) { ?>
-					<tr style="background:#fff;">
-						<td align="center"><?=(int)$program['affiliate_program_id']?></td>
-						<td>
-							<strong><?=htmlspecialchars($program['affiliate_program_name'], ENT_QUOTES, 'UTF-8')?></strong>
-							<?php if (!empty($program['affiliate_program_description'])) { ?>
-								<div style="padding-top:4px; color:#666; font-size:11px;"><?=htmlspecialchars($program['affiliate_program_description'], ENT_QUOTES, 'UTF-8')?></div>
-							<?php } ?>
-						</td>
-						<td style="word-break: break-all;"><?=htmlspecialchars($program['affiliate_program_url'], ENT_QUOTES, 'UTF-8')?></td>
-						<td align="center"><?=(int)$program['paysites_count']?></td>
-						<td align="center"><?=htmlspecialchars($program['updated_at'], ENT_QUOTES, 'UTF-8')?></td>
-						<td align="center">
-							<a href="index.php?act=affiliate_programs&amp;edit_program=<?=(int)$program['affiliate_program_id']?>">Edit</a>
-							<?php if ((int)$program['paysites_count'] === 0) { ?>
-								<form method="post" action="index.php?act=affiliate_programs" style="display:inline;" onsubmit="return confirm('Удалить affiliate program?');">
-									<input type="hidden" name="affiliate_program_id" value="<?=(int)$program['affiliate_program_id']?>">
-									<input type="submit" name="delete_affiliate_program" value="Delete" style="color:#900; background:none; border:none; cursor:pointer; text-decoration:underline;">
-								</form>
-							<?php } else { ?>
-								<span style="color:#999;">In use</span>
-							<?php } ?>
-						</td>
+		<style type="text/css">
+			.affiliate-programs-controls {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 10px;
+				align-items: center;
+				margin: 0 0 12px;
+				padding: 12px;
+				background: #f7f8fb;
+				border: 1px solid #d8deea;
+			}
+
+			.affiliate-programs-controls input[type="text"] {
+				height: 32px;
+				min-width: 280px;
+				padding: 0 8px;
+				border: 1px solid #bfc7d6;
+				box-sizing: border-box;
+			}
+
+			.affiliate-programs-summary {
+				margin: 0 0 10px;
+				color: #444;
+			}
+
+			.affiliate-programs-table-wrap {
+				border: 1px solid #d8deea;
+				background: #fff;
+				overflow-x: auto;
+			}
+
+			.affiliate-programs-table {
+				width: 100%;
+				border-collapse: collapse;
+				min-width: 880px;
+				background: #fff;
+			}
+
+			.affiliate-programs-table th,
+			.affiliate-programs-table td {
+				padding: 10px 12px;
+				border-bottom: 1px solid #e6eaf2;
+				vertical-align: top;
+			}
+
+			.affiliate-programs-table th {
+				background: #f2f5fa;
+				color: #223;
+				font-weight: bold;
+				white-space: nowrap;
+			}
+
+			.affiliate-programs-table tbody tr:hover {
+				background: #fafcff;
+			}
+
+			.affiliate-programs-sortable {
+				cursor: pointer;
+				user-select: none;
+			}
+
+			.affiliate-programs-sort-indicator {
+				display: inline-block;
+				width: 14px;
+				color: #667;
+			}
+
+			.affiliate-programs-muted {
+				padding-top: 4px;
+				color: #666;
+				font-size: 11px;
+			}
+
+			.affiliate-programs-url {
+				word-break: break-all;
+			}
+
+			.affiliate-programs-empty {
+				padding: 18px 12px;
+				color: #666;
+				text-align: center;
+			}
+		</style>
+
+		<div class="affiliate-programs-controls">
+			<input type="text" id="affiliate-programs-search" placeholder="Фильтр по имени, URL или описанию..." autocomplete="off" />
+		</div>
+
+		<div class="affiliate-programs-summary">
+			Строк в текущем списке: <strong id="affiliate-programs-visible-count"><?= $affiliatePrograms ? count($affiliatePrograms) : 0 ?></strong>
+		</div>
+
+		<div class="affiliate-programs-table-wrap">
+			<table class="affiliate-programs-table" id="affiliate-programs-table">
+				<thead>
+					<tr>
+						<th width="50" class="affiliate-programs-sortable" data-column-index="0" data-sort-type="number">ID <span class="affiliate-programs-sort-indicator"></span></th>
+						<th class="affiliate-programs-sortable" data-column-index="1" data-sort-type="text">Name <span class="affiliate-programs-sort-indicator"></span></th>
+						<th class="affiliate-programs-sortable" data-column-index="2" data-sort-type="text">URL <span class="affiliate-programs-sort-indicator"></span></th>
+						<th width="90" class="affiliate-programs-sortable" data-column-index="3" data-sort-type="number">Paysites <span class="affiliate-programs-sort-indicator"></span></th>
+						<th width="180" class="affiliate-programs-sortable" data-column-index="4" data-sort-type="number">Updated <span class="affiliate-programs-sort-indicator"></span></th>
+						<th width="120">Действия</th>
 					</tr>
-				<?php } ?>
-			<?php } else { ?>
-				<tr style="background:#fff;">
-					<td colspan="6" align="center">Affiliate programs пока нет.</td>
-				</tr>
-			<?php } ?>
-		</table>
+				</thead>
+				<tbody>
+					<?php if ($affiliateProgramsRows !== '') { ?>
+						<?=$affiliateProgramsRows?>
+					<?php } else { ?>
+						<tr id="affiliate-programs-empty-row">
+							<td colspan="6" class="affiliate-programs-empty">Affiliate programs пока нет.</td>
+						</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+		</div>
 	</div>
 
 	<div style="clear:both;"></div>
 </div>
+
+<script type="text/javascript">
+	(function () {
+		var searchInput = document.getElementById('affiliate-programs-search');
+		var table = document.getElementById('affiliate-programs-table');
+		if (!searchInput || !table) {
+			return;
+		}
+
+		var tbody = table.querySelector('tbody');
+		var countBlock = document.getElementById('affiliate-programs-visible-count');
+		var emptyRow = document.getElementById('affiliate-programs-empty-row');
+		var headers = table.querySelectorAll('.affiliate-programs-sortable');
+		var currentSort = {
+			index: 3,
+			direction: 'desc',
+			type: 'number'
+		};
+
+		function getRows() {
+			return Array.prototype.slice.call(tbody.querySelectorAll('tr.affiliate-program-row'));
+		}
+
+		function updateCount() {
+			var visible = 0;
+			getRows().forEach(function (row) {
+				if (row.style.display !== 'none') {
+					visible += 1;
+				}
+			});
+			countBlock.textContent = visible;
+			if (emptyRow) {
+				emptyRow.style.display = visible === 0 ? '' : 'none';
+			}
+		}
+
+		function filterRows() {
+			var query = searchInput.value.toLowerCase().trim();
+			getRows().forEach(function (row) {
+				var filterText = row.getAttribute('data-filter') || row.getAttribute('data-name') || '';
+				row.style.display = query === '' || filterText.indexOf(query) !== -1 ? '' : 'none';
+			});
+			updateCount();
+		}
+
+		function getCellSortValue(row, columnIndex) {
+			var cell = row.cells[columnIndex];
+			if (!cell) {
+				return '';
+			}
+			return cell.getAttribute('data-sort') || cell.textContent || '';
+		}
+
+		function sortRows(columnIndex, sortType, direction) {
+			var rows = getRows();
+			rows.sort(function (a, b) {
+				var aValue = getCellSortValue(a, columnIndex);
+				var bValue = getCellSortValue(b, columnIndex);
+
+				if (sortType === 'number') {
+					aValue = parseFloat(aValue || '0');
+					bValue = parseFloat(bValue || '0');
+				} else {
+					aValue = aValue.toLowerCase();
+					bValue = bValue.toLowerCase();
+				}
+
+				if (aValue < bValue) {
+					return direction === 'asc' ? -1 : 1;
+				}
+				if (aValue > bValue) {
+					return direction === 'asc' ? 1 : -1;
+				}
+				return 0;
+			});
+
+			rows.forEach(function (row) {
+				tbody.appendChild(row);
+			});
+
+			headers.forEach(function (header) {
+				var indicator = header.querySelector('.affiliate-programs-sort-indicator');
+				if (!indicator) {
+					return;
+				}
+				if (parseInt(header.getAttribute('data-column-index'), 10) === columnIndex) {
+					indicator.textContent = direction === 'asc' ? '▲' : '▼';
+				} else {
+					indicator.textContent = '';
+				}
+			});
+		}
+
+		headers.forEach(function (header) {
+			header.addEventListener('click', function () {
+				var columnIndex = parseInt(header.getAttribute('data-column-index'), 10);
+				var sortType = header.getAttribute('data-sort-type') || 'text';
+				var direction = 'asc';
+				if (currentSort.index === columnIndex) {
+					direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+				}
+				currentSort = {
+					index: columnIndex,
+					direction: direction,
+					type: sortType
+				};
+				sortRows(columnIndex, sortType, direction);
+				filterRows();
+			});
+		});
+
+		searchInput.addEventListener('input', filterRows);
+		sortRows(currentSort.index, currentSort.type, currentSort.direction);
+		filterRows();
+	})();
+</script>

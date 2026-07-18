@@ -411,7 +411,7 @@ if ($userAuth->isAuthorized()) {
 
 			<?php getWidget('menu'); ?>
 			<div style="clear: both;"></div>
-			<div id="wrapper" style="text-align: center; padding-top:15px; padding-bottom:15px;">
+			<div id="wrapper" style="text-align: center; padding-top:15px; padding-bottom:15px; width:auto;">
 				<?php
 				if (isset($_GET['act'])) {
 
@@ -427,6 +427,10 @@ if ($userAuth->isAuthorized()) {
 
 							case 'affiliate_programs':
 								include "lib/affiliate_programs.php";
+								break;
+
+							case 'paysite_update_markers':
+								include "lib/paysite_update_markers.php";
 								break;
 
 						case 'make':
@@ -974,7 +978,7 @@ if ($userAuth->isAuthorized()) {
 					}
 				} else {
 					?>
-					<div id="wrapper" style="text-align: center; padding:5px;">
+					<div id="wrapper" style="text-align: center; padding:5px; width:auto;">
 			<?php
 					getWidget('caches_stats');
 					if ($userAuth->isAdmin()) {

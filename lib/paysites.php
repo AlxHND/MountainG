@@ -18,6 +18,24 @@ if (!function_exists('paysite_affiliate_runtime_value')) {
 	}
 }
 
+if (!function_exists('paysite_h')) {
+	function paysite_h($value)
+	{
+		return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+	}
+}
+
+if (!function_exists('paysite_lower')) {
+	function paysite_lower($value)
+	{
+		$value = (string)$value;
+		if (function_exists('mb_strtolower')) {
+			return mb_strtolower($value, 'UTF-8');
+		}
+		return strtolower($value);
+	}
+}
+
 $set_cropped 		= (isset($_REQUEST['set_cropped']) && $_REQUEST['set_cropped']) ? 1 : 0;
 $use_original_ids 	= (isset($_REQUEST['use_original_ids']) && $_REQUEST['use_original_ids']) ? 1 : 0;
 $single_update_page = (isset($_REQUEST['single_update_page'])) ? $_REQUEST['single_update_page'] : 0;
@@ -38,29 +56,110 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 
 	$site_id = (int)$_GET['check_updates'];
 	$source_info = $sources->getSource($site_id);
+	$content_type = (isset($_GET['content_type']) && $_GET['content_type'] === 'video') ? 'video' : '';
+	$marker_types = $sources->getPaysiteUpdateMarkerTypes();
+	$check_updates_message = '';
+	$check_updates_message_type = 'ok';
 
 	if ($source_info) {
 
-		$output_html = '<a href="index.php?act=paysites">Перейти к базе платников</a><hr>';
-		$content_type = (isset($_GET['content_type'])) ? $_GET['content_type'] : false; 
+		if (isset($_POST['save_check_update_marker'])) {
+			$marker_type = isset($_POST['marker_type']) ? trim((string)$_POST['marker_type']) : '';
+			$update_title = isset($_POST['update_title']) ? trim((string)$_POST['update_title']) : '';
+			$update_page_url = isset($_POST['update_page_url']) ? trim((string)$_POST['update_page_url']) : '';
+			$update_inner_date = isset($_POST['update_inner_date']) ? trim((string)$_POST['update_inner_date']) : '';
+
+			try {
+				$saved_marker_id = $sources->savePaysiteUpdateMarker($site_id, $marker_type, $update_title, $update_page_url, $update_inner_date);
+				$check_updates_message = "Маркер #{$saved_marker_id} сохранен как " . (isset($marker_types[$marker_type]) ? $marker_types[$marker_type] : $marker_type) . ".";
+			} catch (Exception $e) {
+				$check_updates_message = "Ошибка сохранения маркера: " . $e->getMessage();
+				$check_updates_message_type = 'error';
+			}
+		}
+
+		$current_markers = $sources->getPaysiteUpdateMarkersByPaysite($site_id);
+		$current_markers_map = array();
+		foreach ($current_markers as $current_marker) {
+			$current_markers_map[$current_marker['marker_type']] = $current_marker;
+		}
+
+		$check_updates_url = 'index.php?act=paysites&check_updates=' . $site_id . ($content_type === 'video' ? '&content_type=video' : '');
+
+		$output_html = '<div style="width:1400px; margin:0 auto; text-align:left;">';
+		$output_html .= '<div style="padding: 0 0 10px 0;"><a href="index.php?act=paysites">Перейти к базе платников</a> | <a href="index.php?act=paysite_update_markers&amp;filter_paysite_id=' . $site_id . '">Все маркеры платника</a></div>';
+		$output_html .= '<h3 style="margin:0 0 10px 0;">Проверка ' . ($content_type === 'video' ? 'видео апдейтов' : 'апдейтов') . ' для платника #' . $site_id . ' - ' . paysite_h($source_info['name']) . '</h3>';
+
+		if ($check_updates_message !== '') {
+			$output_html .= '<div style="padding:10px 12px; margin-bottom:14px; border:1px solid ' . ($check_updates_message_type === 'error' ? '#d99' : '#bcd') . '; background:' . ($check_updates_message_type === 'error' ? '#fff0f0' : '#f3fbff') . ';">' . paysite_h($check_updates_message) . '</div>';
+		}
+
+		$output_html .= '<table cellpadding="4" cellspacing="1" width="100%" style="background:#d8d8d8; margin-bottom:14px;">';
+		$output_html .= '<tr style="background:#efefef;"><th width="150">Маркер</th><th width="170">Внутренняя дата</th><th>Название</th><th>Страница</th><th width="160">Updated</th><th width="120">Действие</th></tr>';
+		foreach ($marker_types as $marker_type_key => $marker_type_label) {
+			$marker_row = isset($current_markers_map[$marker_type_key]) ? $current_markers_map[$marker_type_key] : false;
+			$output_html .= '<tr style="background:#fff;">';
+			$output_html .= '<td><strong>' . paysite_h($marker_type_label) . '</strong></td>';
+			$output_html .= '<td>' . ($marker_row && $marker_row['update_inner_date'] ? paysite_h($marker_row['update_inner_date']) : '<span style="color:#999;">-</span>') . '</td>';
+			$output_html .= '<td>' . ($marker_row && $marker_row['update_title'] !== '' ? paysite_h($marker_row['update_title']) : '<span style="color:#999;">-</span>') . '</td>';
+			$output_html .= '<td>' . ($marker_row && $marker_row['update_page_url'] !== '' ? '<a href="' . paysite_h($marker_row['update_page_url']) . '" target="_blank">' . paysite_h($marker_row['update_page_url']) . '</a>' : '<span style="color:#999;">-</span>') . '</td>';
+			$output_html .= '<td>' . ($marker_row && $marker_row['updated_at'] ? paysite_h($marker_row['updated_at']) : '<span style="color:#999;">-</span>') . '</td>';
+			$output_html .= '<td><a href="index.php?act=paysite_update_markers&amp;paysite_id=' . $site_id . '&amp;marker_type=' . paysite_h($marker_type_key) . '">Открыть</a></td>';
+			$output_html .= '</tr>';
+		}
+		$output_html .= '</table>';
+
 		$updates = $sources->checkUpdates($site_id, $content_type);
 
 		if (is_array($updates)) {
 
-			$output_html .= "<br><div style='float: left; text-align: left; width: 100%;'>";
-			
-			foreach ($updates as $update) {
-				$output_html .=  $update['url']."|".$update['title']."|".$update['desc']."|".$source_info['name']."<br>";
+			$output_html .= "<div style='float: left; text-align: left; width: 100%;'>";
+			$output_html .= "<table cellpadding='4' cellspacing='1' width='100%' style='background:#d8d8d8;'>";
+			$output_html .= "<tr style='background:#efefef;'>
+								<th width='40'>#</th>
+								<th width='360'>URL</th>
+								<th width='260'>Title</th>
+								<th>Description</th>
+								<th width='170'>Inner date</th>
+								<th width='230'>Сохранить маркер</th>
+							</tr>";
+
+			foreach ($updates as $index => $update) {
+				$update_url = isset($update['url']) ? trim((string)$update['url']) : '';
+				$update_title = isset($update['title']) ? trim((string)$update['title']) : '';
+				$update_desc = isset($update['desc']) ? trim((string)$update['desc']) : '';
+				$update_inner_date = isset($update['date']) ? trim((string)$update['date']) : '';
+
+				$output_html .= "<tr style='background:#fff; vertical-align:top;'>";
+				$output_html .= "<td>" . ($index + 1) . "</td>";
+				$output_html .= "<td>" . ($update_url !== '' ? "<a href='" . paysite_h($update_url) . "' target='_blank'>" . paysite_h($update_url) . "</a>" : "<span style='color:#999;'>-</span>") . "</td>";
+				$output_html .= "<td>" . ($update_title !== '' ? paysite_h($update_title) : "<span style='color:#999;'>-</span>") . "</td>";
+				$output_html .= "<td style='font-size:11px; color:#444;'>" . ($update_desc !== '' ? nl2br(paysite_h($update_desc)) : "<span style='color:#999;'>-</span>") . "</td>";
+				$output_html .= "<td>" . ($update_inner_date !== '' ? paysite_h($update_inner_date) : "<span style='color:#999;'>-</span>") . "</td>";
+				$output_html .= "<td>
+									<form method='post' action='" . $check_updates_url . "' style='margin:0;'>
+										<input type='hidden' name='save_check_update_marker' value='1'>
+										<input type='hidden' name='update_title' value='" . paysite_h($update_title) . "'>
+										<input type='hidden' name='update_page_url' value='" . paysite_h($update_url) . "'>
+										<input type='text' name='update_inner_date' value='" . paysite_h($update_inner_date) . "' placeholder='Дата (опц.)' style='width:180px; margin-bottom:4px;'>
+										<br>
+										<button type='submit' name='marker_type' value='latest' style='width:180px; margin-bottom:4px;'>Записать как: Последний по времени</button>
+										<br>
+										<button type='submit' name='marker_type' value='backfill' style='width:180px;'>Записать как: Последний из старых</button>
+									</form>
+								</td>";
+				$output_html .= "</tr>";
 			}
 
-			$output_html .=  "<div><div style='clear: both;'></div>";
+			$output_html .=  "</table></div><div style='clear: both;'></div>";
 
 		} else {
 			$output_html .=  "Ошибка! У платника #{$site_id} нет УРЛа для апдейтов<hr>";
 		}
 		
+		$output_html .= '</div>';
 	} else {
-		$output_html .=  "Ошибка! Нет платника с ID #{$site_id}<hr>";
+		$output_html = "Ошибка! Нет платника с ID #{$site_id}<hr>";
 	}
 
 	echo $output_html;
@@ -120,10 +219,11 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 
 				
 
-				if (isset($_GET['edit'], $_GET['siteid'])) { 
-					$siteInfo = $sources->getSource((int)$_GET['siteid']); 
-					if(isset($siteInfo['use_original_ids'])) $use_original_ids = $siteInfo['use_original_ids'];
-				}
+					if (isset($_GET['edit'], $_GET['siteid'])) { 
+						$siteInfo = $sources->getSource((int)$_GET['siteid']); 
+						if(isset($siteInfo['use_original_ids'])) $use_original_ids = $siteInfo['use_original_ids'];
+						$siteUpdateMarkers = $sources->getPaysiteUpdateMarkersByPaysite((int)$_GET['siteid']);
+					}
 	?>
 
 				<form enctype="multipart/form-data" action="<?=$_SERVER['SCRIPT_NAME'] . "?". $_SERVER['QUERY_STRING']?>" method="post">
@@ -311,17 +411,39 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 								<td bgcolor="#e4e4e4"><input size="6" name="paysiteRating" id="paysiteRating" <?php if (isset($siteInfo)) echo "value='".$siteInfo['paysiteRating']."'";?>></td>
 							</tr>
 						</table>
-						<input type="submit" value="Add paysite >>" name="add-site" id="add-site" />
+							<input type="submit" value="Add paysite >>" name="add-site" id="add-site" />
 
-					</div>
+						</div>
 
-					<?php if (isset($_GET['siteid'])) { ?>
-						<div style="float: left;"><input onclick="return confirm('удалить платник?')" style="color: #FF0000; background: none;" type="submit" value="X" name="delete_paysite" id="delete_paysite" /></div>
-					<?php } ?>
+						<?php if (isset($_GET['siteid']) && (int)$_GET['siteid'] > 0) { ?>
+							<div style="text-align:left; width:1200px; margin:10px auto 0; padding:10px; background:#f8f8f8; border:1px solid #ddd;">
+								<strong>Маркеры апдейтов:</strong>
+								<a href="index.php?act=paysite_update_markers&amp;filter_paysite_id=<?=(int)$_GET['siteid']?>">все</a>
+								|
+								<a href="index.php?act=paysite_update_markers&amp;paysite_id=<?=(int)$_GET['siteid']?>&amp;marker_type=latest">последний по времени</a>
+								|
+								<a href="index.php?act=paysite_update_markers&amp;paysite_id=<?=(int)$_GET['siteid']?>&amp;marker_type=backfill">последний из старых</a>
+								<?php if (!empty($siteUpdateMarkers)) { ?>
+									<div style="padding-top:8px; color:#555; font-size:12px;">
+										<?php foreach ($siteUpdateMarkers as $marker) { ?>
+											<div>
+												<?=htmlspecialchars($marker['marker_type'], ENT_QUOTES, 'UTF-8')?>:
+												<strong><?=htmlspecialchars($marker['update_title'], ENT_QUOTES, 'UTF-8')?></strong>
+												<?php if (!empty($marker['update_inner_date'])) { ?> | <?=htmlspecialchars($marker['update_inner_date'], ENT_QUOTES, 'UTF-8')?><?php } ?>
+											</div>
+										<?php } ?>
+									</div>
+								<?php } ?>
+							</div>
+						<?php } ?>
+
+						<?php if (isset($_GET['siteid'])) { ?>
+							<div style="float: left;"><input onclick="return confirm('удалить платник?')" style="color: #FF0000; background: none;" type="submit" value="X" name="delete_paysite" id="delete_paysite" /></div>
+						<?php } ?>
 					<div style = "clear: both;"></div>
 				</form>
 	<?php   } else {  ?>			
-	<div style="display: block;  width: 1200px; text-align: left; font-size: 12px; margin: 15px;">
+	<div style="display: block; width: 1200px; text-align: left; font-size: 12px; margin: 15px auto;">
 		Всего платников: <?=$sources_count = $sources->sourcesCount(); ?>,
 		Платников в кэше: <strong id="sources_count_block"><?php 
 	                      $sources_cached = $cache_worker->sourcesCount();
@@ -339,13 +461,6 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 	  <input type="button" value="Пересобрать кeш платников" id="init_sources" onclick="init_sources();">
 	</div>
 	<br />
-
-	<link type="text/css" rel="stylesheet" href="//unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
-	<link type="text/css" rel="stylesheet" href="//unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css" />
-	<script src="//polyfill.io/v3/polyfill.min.js?features=es2015%2CIntersectionObserver" crossorigin="anonymous"></script>
-	<script src="//unpkg.com/vue@latest/dist/vue.min.js"></script>
-	<script src="//unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.js"></script>
-	<script src="//unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue-icons.min.js"></script>	
 
 	<?php	
 
@@ -379,74 +494,178 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 					$category		= isset($_REQUEST['category']) ? (int)$_REQUEST['category'] : false;
 					$affiliate_program_filter = isset($_REQUEST['affiliate_program_filter']) ? (int)$_REQUEST['affiliate_program_filter'] : false;
 
-
-				
-				  
-				  
-
 					if($paysites = $sources->getAllSources($source_id , $niche, $legal_links, $category, $affiliate_program_filter)) {
-
 						foreach($paysites as $id => $paysite) {
-							$paysite_array[] = "id: {$paysite['id']}, name:  {$paysite['name']}, program: " . paysite_affiliate_runtime_value($paysite) . ", niche: {$paysite['niche']}, category: {$default->TagName($paysite['category'])}, crop: {$paysite['cropProfile']}, updated: {$paysite['lastUpdate']}";
-						}
-					$all_paysites = implode(",\n", $paysite_array);
-?>
-
-<?php
-
-
-
-						foreach($paysites as $id => $paysite) {
-							
-							$block_height = (isset($paysite['video_update_page']) && $paysite['video_update_page']) ? 40 : 20;
-							$affiliateProgramLabel = $paysite['affiliateProgram'] ? htmlspecialchars($paysite['affiliateProgram'], ENT_QUOTES, 'UTF-8') : '<span style="color:#999;">legacy</span>';
-							$affiliateProgramUrl = $paysite['affiliateProgramUrl'] ? htmlspecialchars($paysite['affiliateProgramUrl'], ENT_QUOTES, 'UTF-8') : '';
-							$affiliateProgramLegacy = !empty($paysite['affiliateProgramLegacy']) ? htmlspecialchars($paysite['affiliateProgramLegacy'], ENT_QUOTES, 'UTF-8') : '';
+							$affiliateProgramLabel = $paysite['affiliateProgram'] ? paysite_h($paysite['affiliateProgram']) : '<span style="color:#999;">legacy</span>';
+							$affiliateProgramUrl = $paysite['affiliateProgramUrl'] ? paysite_h($paysite['affiliateProgramUrl']) : '';
+							$affiliateProgramLegacy = !empty($paysite['affiliateProgramLegacy']) ? paysite_h($paysite['affiliateProgramLegacy']) : '';
 							$affiliateRuntimeValue = paysite_affiliate_runtime_value($paysite);
-
-							$paysites_html_block .= "<div style='float:left; margin: 4px; border: #ccc solid 1px; display: block; width: 96%; height: {$block_height}px;'>
-														<div style='float:left; margin: 4px;'>
-															<a href={$_SERVER['SCRIPT_NAME']}?act=paysites&siteid={$id}&edit>Edit paysite</a> -> 
-															ID: {$paysite ['id']} 
-															name: <strong>{$paysite['name']}</strong> 
-															aff. program: <strong>{$affiliateProgramLabel}</strong>" . ($affiliateProgramUrl ? " <span style='color:#666;'>| {$affiliateProgramUrl}</span>" : "") . ($affiliateProgramLegacy && $affiliateProgramLegacy !== $affiliateProgramUrl && $affiliateProgramLegacy !== strip_tags($affiliateProgramLabel) ? " <span style='color:#999;'>(legacy: {$affiliateProgramLegacy})</span>" : "") . "
-															niche: {$paysite['niche']} 
-															category: <strong>{$default->TagName($paysite['category'])}</strong> 
-															crop profile: {$paysite['cropProfile']}
-														</div>
-														<div style='float:right; margin: 4px;'>{$paysite['lastUpdate']}";
-
-								
-
+							$categoryName = $default->TagName($paysite['category']);
+							$lastUpdate = isset($paysite['lastUpdate']) ? trim((string)$paysite['lastUpdate']) : '';
+							$lastUpdateTs = $lastUpdate !== '' ? strtotime($lastUpdate) : 0;
+							$bitrateValue = isset($paysite['bitrate']) ? (int)$paysite['bitrate'] : 0;
+							$hasLegalLink = !empty($paysite['legal_link']);
+							if ($lastUpdateTs === false) {
+								$lastUpdateTs = 0;
+							}
+							$actions = array();
+							$actions[] = "<a href='" . $_SERVER['SCRIPT_NAME'] . "?act=paysites&amp;siteid={$id}&amp;edit'>Edit</a>";
+							$actions[] = "<a href='index.php?act=paysite_update_markers&amp;filter_paysite_id={$id}'>Markers</a>";
 							if (in_array($affiliateRuntimeValue, $updateable_paysites, true)) {
-								if ($paysite['paysite_update_page']) $paysites_html_block .= " | <a href='index.php?act=paysites&amp;check_updates=".$paysite ['id']."'>Проверить апдейты</a>";
-								if ($paysite['video_update_page']) $paysites_html_block .=  " <br><a href='index.php?act=paysites&amp;check_updates=".$paysite ['id']."&amp;content_type=video'>Проверить видео апдейты</a>";
+								if ($paysite['paysite_update_page']) {
+									$actions[] = "<a href='index.php?act=paysites&amp;check_updates={$paysite['id']}'>Апдейты</a>";
+								}
+								if ($paysite['video_update_page']) {
+									$actions[] = "<a href='index.php?act=paysites&amp;check_updates={$paysite['id']}&amp;content_type=video'>Видео апдейты</a>";
+								}
 							}
 
-						$paysites_html_block .=  "  </div>
-												  </div>
-							  					  <br>";
+							$paysites_html_block .= "<tr class='paysites-row' data-name='" . paysite_h(paysite_lower($paysite['name'])) . "' data-program='" . paysite_h(paysite_lower(strip_tags($affiliateProgramLabel))) . "'>
+								<td data-sort='" . (int)$paysite['id'] . "'>" . (int)$paysite['id'] . "</td>
+								<td data-sort='" . paysite_h(paysite_lower($paysite['name'])) . "'><strong>" . paysite_h($paysite['name']) . "</strong></td>
+								<td data-sort='" . paysite_h(paysite_lower(strip_tags($affiliateProgramLabel))) . "'>
+									<div><strong>{$affiliateProgramLabel}</strong></div>" .
+									($affiliateProgramUrl ? "<div class='paysites-muted'>{$affiliateProgramUrl}</div>" : "") .
+									($affiliateProgramLegacy && $affiliateProgramLegacy !== $affiliateProgramUrl && $affiliateProgramLegacy !== strip_tags($affiliateProgramLabel) ? "<div class='paysites-legacy'>legacy: {$affiliateProgramLegacy}</div>" : "") .
+								"</td>
+								<td data-sort='" . paysite_h($paysite['niche']) . "'>" . paysite_h($paysite['niche']) . "</td>
+								<td data-sort='" . paysite_h(paysite_lower($categoryName)) . "'>" . paysite_h($categoryName) . "</td>
+								<td data-sort='" . $bitrateValue . "'>" . ($bitrateValue > 0 ? $bitrateValue . " kbps" : "<span class='paysites-muted'>-</span>") . "</td>
+								<td data-sort='" . ($hasLegalLink ? 1 : 0) . "'>" . ($hasLegalLink ? "Да" : "Нет") . "</td>
+								<td data-sort='" . (int)$lastUpdateTs . "'>" . ($lastUpdate !== '' ? paysite_h($lastUpdate) : "<span class='paysites-muted'>-</span>") . "</td>
+								<td>" . implode(" <span class='paysites-sep'>|</span> ", $actions) . "</td>
+							</tr>";
 					}
 				}
 
 	?>
 
-				<form enctype="multipart/form-data" action="<?=$_SERVER['SCRIPT_NAME'] . "?". $_SERVER['QUERY_STRING']?>" method="post">
-					Показывать платники: 
-					<select name="niche" id="niche">
-						<option value="0">All</option>
-						<option value="Gay">Gay</option>
-						<option value="Straight">Straight</option>
-						<option value="Shemale">Shemale</option>
-					</select>
-					<select name="legal_links" id="legal_links">
-						<option value="0">Все без учета 2257 ссылки</option>
-						<option value="with">Только с 2257 ссылкой</option>
-						<option value="without">Только без 2257 ссылки</option>
-					</select>
+				<style type="text/css">
+					.paysites-panel {
+						width: 1400px;
+						margin: 0 auto;
+						text-align: left;
+						font-size: 13px;
+					}
+
+					.paysites-controls {
+						display: flex;
+						flex-wrap: wrap;
+						gap: 10px;
+						align-items: center;
+						margin: 14px 0 12px;
+						padding: 12px;
+						background: #f7f8fb;
+						border: 1px solid #d8deea;
+					}
+
+					.paysites-controls select,
+					.paysites-controls input[type="text"] {
+						height: 32px;
+						padding: 0 8px;
+						border: 1px solid #bfc7d6;
+						box-sizing: border-box;
+					}
+
+					.paysites-controls input[type="submit"] {
+						height: 32px;
+						padding: 0 12px;
+					}
+
+					.paysites-live-search {
+						min-width: 260px;
+						flex: 1 1 260px;
+					}
+
+					.paysites-summary {
+						display: flex;
+						justify-content: space-between;
+						align-items: center;
+						margin: 8px 0 10px;
+						color: #444;
+					}
+
+					.paysites-table-wrap {
+						border: 1px solid #d8deea;
+						background: #fff;
+						overflow-x: auto;
+					}
+
+					.paysites-table {
+						width: 100%;
+						border-collapse: collapse;
+						min-width: 1180px;
+					}
+
+					.paysites-table th,
+					.paysites-table td {
+						padding: 10px 12px;
+						border-bottom: 1px solid #e6eaf2;
+						vertical-align: top;
+					}
+
+					.paysites-table th {
+						background: #f2f5fa;
+						color: #223;
+						font-weight: bold;
+						white-space: nowrap;
+					}
+
+					.paysites-table tbody tr:hover {
+						background: #fafcff;
+					}
+
+					.paysites-sortable {
+						cursor: pointer;
+						user-select: none;
+					}
+
+					.paysites-sort-indicator {
+						display: inline-block;
+						width: 14px;
+						color: #667;
+					}
+
+					.paysites-muted {
+						color: #6f7787;
+						font-size: 11px;
+						margin-top: 2px;
+						word-break: break-word;
+					}
+
+					.paysites-legacy {
+						color: #8b6c3b;
+						font-size: 11px;
+						margin-top: 2px;
+					}
+
+					.paysites-sep {
+						color: #999;
+					}
+
+					.paysites-empty {
+						padding: 18px 12px;
+						color: #666;
+					}
+				</style>
+
+				<div class="paysites-panel">
+					<form class="paysites-controls" enctype="multipart/form-data" action="<?=$_SERVER['SCRIPT_NAME'] . "?". $_SERVER['QUERY_STRING']?>" method="post">
+						<span>Показывать платники:</span>
+						<select name="niche" id="niche">
+							<option value="0">All</option>
+							<option value="Gay" <?php if ($niche === 'Gay') echo "selected='selected'"; ?>>Gay</option>
+							<option value="Straight" <?php if ($niche === 'Straight') echo "selected='selected'"; ?>>Straight</option>
+							<option value="Shemale" <?php if ($niche === 'Shemale') echo "selected='selected'"; ?>>Shemale</option>
+						</select>
+						<select name="legal_links" id="legal_links">
+							<option value="0" <?php if ($legal_links === false) echo "selected='selected'"; ?>>Все без учета 2257 ссылки</option>
+							<option value="with" <?php if ($legal_links === 1) echo "selected='selected'"; ?>>Только с 2257 ссылкой</option>
+							<option value="without" <?php if ($legal_links === -1) echo "selected='selected'"; ?>>Только без 2257 ссылки</option>
+						</select>
 						<select name="category" id="category">
 							<option value="0">Все категории</option>
-							<?php $default->AllTagsToString("<option value=\"#TAG_ID#\">#TAG#</option>"); ?>
+							<?php $default->AllTagsToString("<option value=\"#TAG_ID#\" #SELECTED#>#TAG#</option>", $category); ?>
 						</select>
 						<select name="affiliate_program_filter" id="affiliate_program_filter">
 							<option value="0">Все affiliate programs</option>
@@ -460,13 +679,168 @@ if (isset($_REQUEST['delete_paysite']) && isset($_GET['siteid'])) {
 							} ?>
 						</select>
 						<input type="submit" value="Показать платники" name="show_paysites" id="show_paysites" />
-				</form>
-				<?=$paysites_html_block?>
-				<div class="menu">
-					>> <a href="<?=$_SERVER['SCRIPT_NAME'] . "?". $_SERVER['QUERY_STRING']?>&amp;query=add">Add paysite</a>
-					<br />
-					<hr>
+						<input type="text" id="paysites-live-search" class="paysites-live-search" placeholder="Фильтр по названию платника..." autocomplete="off" />
+						<input type="text" id="paysites-program-search" class="paysites-live-search" placeholder="Фильтр по имени программы..." autocomplete="off" />
+					</form>
+
+					<div class="paysites-summary">
+						<div>Строк в текущей выборке: <strong id="paysites-visible-count"><?= isset($paysites) && is_array($paysites) ? count($paysites) : 0 ?></strong></div>
+						<div><a href="<?=$_SERVER['SCRIPT_NAME'] . "?". $_SERVER['QUERY_STRING']?>&amp;query=add">Add paysite</a></div>
+					</div>
+
+					<div class="paysites-table-wrap">
+						<table class="paysites-table" id="paysites-table">
+							<thead>
+								<tr>
+									<th class="paysites-sortable" data-column-index="0" data-sort-type="number">ID <span class="paysites-sort-indicator"></span></th>
+									<th class="paysites-sortable" data-column-index="1" data-sort-type="text">Name <span class="paysites-sort-indicator"></span></th>
+									<th class="paysites-sortable" data-column-index="2" data-sort-type="text">Affiliate program <span class="paysites-sort-indicator"></span></th>
+									<th class="paysites-sortable" data-column-index="3" data-sort-type="text">Niche <span class="paysites-sort-indicator"></span></th>
+									<th class="paysites-sortable" data-column-index="4" data-sort-type="text">Category <span class="paysites-sort-indicator"></span></th>
+									<th class="paysites-sortable" data-column-index="5" data-sort-type="number">Bitrate <span class="paysites-sort-indicator"></span></th>
+									<th class="paysites-sortable" data-column-index="6" data-sort-type="number">2257 <span class="paysites-sort-indicator"></span></th>
+									<th class="paysites-sortable" data-column-index="7" data-sort-type="number">Updated <span class="paysites-sort-indicator"></span></th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php if ($paysites_html_block !== '') { ?>
+									<?=$paysites_html_block?>
+								<?php } else { ?>
+									<tr id="paysites-empty-row">
+										<td colspan="9" class="paysites-empty">Платники по текущему фильтру не найдены.</td>
+									</tr>
+								<?php } ?>
+							</tbody>
+						</table>
+					</div>
+
+					<div class="menu">
+						<hr>
+					</div>
 				</div>
+
+				<script type="text/javascript">
+					(function () {
+						var searchInput = document.getElementById('paysites-live-search');
+						var programSearchInput = document.getElementById('paysites-program-search');
+						var table = document.getElementById('paysites-table');
+						if (!searchInput || !programSearchInput || !table) {
+							return;
+						}
+
+						var tbody = table.querySelector('tbody');
+						var countBlock = document.getElementById('paysites-visible-count');
+						var emptyRow = document.getElementById('paysites-empty-row');
+						var headers = table.querySelectorAll('.paysites-sortable');
+						var currentSort = {
+							index: 0,
+							direction: 'asc',
+							type: 'number'
+						};
+
+						function getRows() {
+							return Array.prototype.slice.call(tbody.querySelectorAll('tr.paysites-row'));
+						}
+
+						function updateCount() {
+							var visible = 0;
+							getRows().forEach(function (row) {
+								if (row.style.display !== 'none') {
+									visible += 1;
+								}
+							});
+							countBlock.textContent = visible;
+							if (emptyRow) {
+								emptyRow.style.display = visible === 0 ? '' : 'none';
+							}
+						}
+
+						function filterRows() {
+							var query = searchInput.value.toLowerCase().trim();
+							var programQuery = programSearchInput.value.toLowerCase().trim();
+							getRows().forEach(function (row) {
+								var name = row.getAttribute('data-name') || '';
+								var programName = row.getAttribute('data-program') || '';
+								var nameMatches = query === '' || name.indexOf(query) !== -1;
+								var programMatches = programQuery === '' || programName.indexOf(programQuery) !== -1;
+								row.style.display = nameMatches && programMatches ? '' : 'none';
+							});
+							updateCount();
+						}
+
+						function getCellSortValue(row, columnIndex) {
+							var cell = row.cells[columnIndex];
+							if (!cell) {
+								return '';
+							}
+							return cell.getAttribute('data-sort') || cell.textContent || '';
+						}
+
+						function sortRows(columnIndex, sortType, direction) {
+							var rows = getRows();
+							rows.sort(function (a, b) {
+								var aValue = getCellSortValue(a, columnIndex);
+								var bValue = getCellSortValue(b, columnIndex);
+
+								if (sortType === 'number') {
+									aValue = parseFloat(aValue || '0');
+									bValue = parseFloat(bValue || '0');
+								} else {
+									aValue = aValue.toLowerCase();
+									bValue = bValue.toLowerCase();
+								}
+
+								if (aValue < bValue) {
+									return direction === 'asc' ? -1 : 1;
+								}
+								if (aValue > bValue) {
+									return direction === 'asc' ? 1 : -1;
+								}
+								return 0;
+							});
+
+							rows.forEach(function (row) {
+								tbody.appendChild(row);
+							});
+
+							headers.forEach(function (header) {
+								var indicator = header.querySelector('.paysites-sort-indicator');
+								if (!indicator) {
+									return;
+								}
+								if (parseInt(header.getAttribute('data-column-index'), 10) === columnIndex) {
+									indicator.textContent = direction === 'asc' ? '▲' : '▼';
+								} else {
+									indicator.textContent = '';
+								}
+							});
+						}
+
+						headers.forEach(function (header) {
+							header.addEventListener('click', function () {
+								var columnIndex = parseInt(header.getAttribute('data-column-index'), 10);
+								var sortType = header.getAttribute('data-sort-type') || 'text';
+								var direction = 'asc';
+								if (currentSort.index === columnIndex) {
+									direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+								}
+								currentSort = {
+									index: columnIndex,
+									direction: direction,
+									type: sortType
+								};
+								sortRows(columnIndex, sortType, direction);
+								filterRows();
+							});
+						});
+
+						searchInput.addEventListener('input', filterRows);
+						programSearchInput.addEventListener('input', filterRows);
+						sortRows(currentSort.index, currentSort.type, currentSort.direction);
+						filterRows();
+					})();
+				</script>
 
 	<?php
 			}

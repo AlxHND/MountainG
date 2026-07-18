@@ -34,6 +34,7 @@
 				<li><a href="index.php?act=galleries">Галеры</a></li>
 					<li><a href="index.php?act=paysites">Платники</a></li>
 					<li><a href="index.php?act=affiliate_programs">Аффилейтки</a></li>
+					<li><a href="index.php?act=paysite_update_markers">Маркеры апдейтов</a></li>
 					<li><a href="index.php?act=sites">Сайты</a></li>
 				<li><a href="index.php?act=models">Модели</a></li>
 				<li>
